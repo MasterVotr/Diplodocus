@@ -1,0 +1,8 @@
+# Build
+build/
+.cache/
+.DS_Store
+
+# Imgui config
+imgui.ini
+

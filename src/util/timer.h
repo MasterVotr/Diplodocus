@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <ostream>
 
 class Timer {
    public:
@@ -14,7 +13,7 @@ class Timer {
 
     inline double elapsed_μs() const { return elapsed_ns() / 1'000.0; }
 
-    inline uint64_t elapsed_ns() const {
+    inline int64_t elapsed_ns() const {
         auto end = std::chrono::high_resolution_clock::now();
         return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start_).count();
     }

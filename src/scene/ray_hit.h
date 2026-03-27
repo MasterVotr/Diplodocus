@@ -1,16 +1,15 @@
 #pragma once
 
-#include <cstdint>
-
 #include "util/vec3.h"
 
 namespace diplodocus {
 
 struct RayHit {
-    int triangle_id;
     Vec3 pos;
     Vec3 normal;
-    float t, u, v;
+    float b0, b1, b2;
+    float t;
+    int triangle_id = -1;
 };
 
 }  // namespace diplodocus

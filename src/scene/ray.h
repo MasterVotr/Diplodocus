@@ -6,10 +6,10 @@ namespace diplodocus {
 
 struct Ray {
     Vec3 origin;
-    Vec3 direction;
+    Vec3 dir;
     float t_min, t_max;
 
-    inline Vec3 At(float t) const { return origin + direction * t; }
+    inline Vec3 At(float t) const { return origin + dir * t; }
 };
 
 }  // namespace diplodocus

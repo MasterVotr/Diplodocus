@@ -23,6 +23,7 @@ class Scene {
     void AddAreaLight(AreaLight area_light);
 
     Camera& GetCamera();
+    const Camera& GetCamera() const;
     std::span<const Triangle> Triangles() const;
     std::span<const Material> Materials() const;
     std::span<const PointLight> PointLights() const;

@@ -15,7 +15,10 @@ void Scene::ReservePointsLights(int n) { point_lights_.reserve(n); }
 
 void Scene::ReserveAreaLights(int n) { area_lights_.reserve(n); }
 
-void Scene::AddTriangle(Triangle triangle) { triangles_.emplace_back(std::move(triangle)); }
+void Scene::AddTriangle(Triangle triangle) {
+    RecomputeTriangleGeometricNormal(triangle);
+    triangles_.emplace_back(std::move(triangle));
+}
 
 void Scene::AddMaterial(Material material) { materials_.emplace_back(std::move(material)); }
 
@@ -24,6 +27,8 @@ void Scene::AddPointLight(PointLight point_light) { point_lights_.emplace_back(s
 void Scene::AddAreaLight(AreaLight area_light) { area_lights_.emplace_back(std::move(area_light)); }
 
 Camera& Scene::GetCamera() { return camera_; }
+
+const Camera& Scene::GetCamera() const { return camera_; }
 
 std::span<const Triangle> Scene::Triangles() const {
     return std::span<const Triangle>(triangles_.begin(), triangles_.size());

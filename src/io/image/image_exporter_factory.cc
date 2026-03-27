@@ -3,14 +3,14 @@
 #include <memory>
 #include <stdexcept>
 
-#include "config/image_exporter_config.h"
+#include "config/image_export_config.h"
 #include "io/image/ppm_image_exporter.h"
 
 namespace diplodocus {
 
-std::unique_ptr<ImageExporter> CreateImageExporter(const ImageExporterConfig& config) {
-    switch (config.image_exporter_type) {
-        case ImageExporterType::kPpm:
+std::unique_ptr<ImageExporter> CreateImageExporter(const ImageExportConfig& config) {
+    switch (config.image_export_format) {
+        case ImageExportFormat::kPpm:
             return std::make_unique<PpmImageExporter>();
         default:
             throw std::runtime_error("Unknown image exporter type");

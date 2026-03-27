@@ -6,7 +6,7 @@ namespace diplodocus {
 
 class PpmImageExporter : public ImageExporter {
    public:
-    void Export(const ImageExporterConfig& config, const Framebuffer& framebuffer) const override;
+    void Export(const ImageExportConfig& config, const Framebuffer& framebuffer) const override;
 };
 
 }  // namespace diplodocus

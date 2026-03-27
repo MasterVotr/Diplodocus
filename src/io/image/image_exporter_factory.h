@@ -2,11 +2,11 @@
 
 #include <memory>
 
-#include "config/image_exporter_config.h"
+#include "config/image_export_config.h"
 #include "io/image/image_exporter.h"
 
 namespace diplodocus {
 
-std::unique_ptr<ImageExporter> CreateImageExporter(const ImageExporterConfig& config);
+std::unique_ptr<ImageExporter> CreateImageExporter(const ImageExportConfig& config);
 
 }  // namespace diplodocus

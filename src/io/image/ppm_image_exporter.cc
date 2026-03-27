@@ -7,7 +7,7 @@
 
 namespace diplodocus {
 
-void PpmImageExporter::Export(const ImageExporterConfig& config, const Framebuffer& framebuffer) const {
+void PpmImageExporter::Export(const ImageExportConfig& config, const Framebuffer& framebuffer) const {
     const int w = framebuffer.GetWidth();
     const int h = framebuffer.GetHeight();
     const auto& data = framebuffer.GetData();

@@ -5,6 +5,7 @@
 namespace diplodocus {
 
 struct Material {
+    std::string name;
     Vec3 ambient;
     Vec3 diffuse;
     Vec3 specular;
@@ -12,6 +13,7 @@ struct Material {
     Vec3 emission;
     float shininess;
     float ior;
+    float r_ior;
     float dissolve;
 };
 

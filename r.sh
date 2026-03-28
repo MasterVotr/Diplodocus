@@ -1,4 +1,5 @@
 #!/bin/bash
 
-./build/guiapp
+./build/guiapp sample_config.json
+open output.ppm
 

@@ -1,0 +1,6 @@
+cam_pos 278 273 -1000
+cam_up 0 1 0 
+cam_dir 0 0 1
+cam_fov 0.6
+cam_far 2000.0
+point_light 275 490 275 1.0 1.0 1.0 100000.0

@@ -27,7 +27,7 @@ const float kInfinity = std::numeric_limits<float>::max();
 
 [[nodiscard]] static inline float U01FromU32(uint32_t x) {
     // Use the top 24 bits -> exactly representable steps in float
-    return (x >> 8) * (1.0f / 16777216.0f); // 2^24
+    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
 }
 
 // Printing
@@ -37,4 +37,14 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     std::for_each(vec.begin(), vec.end(), [&os](const auto& e) { os << e << " "; });
     os << "]";
     return os;
+}
+
+template <typename... Args>
+static void PrintFmt(std::ostream& os, std::format_string<Args...> fmt, Args&&... args) {
+    os << std::format(fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+static void PrintLnFmt(std::ostream& os, std::format_string<Args...> fmt, Args&&... args) {
+    os << std::format(fmt, std::forward<Args>(args)...) << '\n';
 }

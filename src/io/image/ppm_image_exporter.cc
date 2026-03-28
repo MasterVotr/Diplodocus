@@ -12,9 +12,9 @@ void PpmImageExporter::Export(const ImageExportConfig& config, const Framebuffer
     const int h = framebuffer.GetHeight();
     const auto& data = framebuffer.GetData();
 
-    std::ofstream output(config.filepath.c_str());
+    std::ofstream output(config.filepath);
     if (!output) {
-        Logger::error("PPM Image exporter: Could not write to file {}!", config.filepath.c_str());
+        Logger::error("PPM Image exporter: Could not write to file {}!", config.filepath.native());
         return;
     }
 
@@ -28,7 +28,7 @@ void PpmImageExporter::Export(const ImageExportConfig& config, const Framebuffer
     }
 
     output.close();
-    Logger::info("Exported framebuffer to {}", config.filepath.c_str());
+    Logger::info("Exported framebuffer to {}", config.filepath.native());
 }
 
 }  // namespace diplodocus

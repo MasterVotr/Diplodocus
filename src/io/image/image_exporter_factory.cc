@@ -13,7 +13,7 @@ std::unique_ptr<ImageExporter> CreateImageExporter(const ImageExportConfig& conf
         case ImageExportFormat::kPpm:
             return std::make_unique<PpmImageExporter>();
         default:
-            throw std::runtime_error("Unknown image exporter type");
+            throw std::invalid_argument("Unknown ImageExportFormat");
     }
 }
 

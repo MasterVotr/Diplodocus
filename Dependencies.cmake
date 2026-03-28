@@ -30,3 +30,16 @@ target_include_directories(imgui PUBLIC
 	${IMGUI_DIR}/backends
 )
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
+
+# tinyobjloader
+add_library(tinyobjloader INTERFACE)
+target_include_directories(tinyobjloader INTERFACE third-party/tinyobjloader)
+
+# json
+add_library(json INTERFACE)
+target_include_directories(json INTERFACE third-party/json)
+
+# tomlplusplus
+add_library(tomlplusplus INTERFACE)
+target_include_directories(tomlplusplus INTERFACE third-party/tomlplusplus)
+

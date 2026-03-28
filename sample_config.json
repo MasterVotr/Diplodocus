@@ -1,0 +1,23 @@
+{
+    "image_export": {
+        "image_export_format": "ppm",
+        "filepath": "output.ppm"
+    },
+    "render": {
+        "width": 512,
+        "height": 512,
+        "background_color": [ 1.0, 0.0, 0.0 ],
+        "backface_culling": true,
+        "max_depth": 0,
+        "area_light_sample_cnt": 4
+    },
+    "scene_load": {
+        "scene_load_format": "obj",
+        "dirpath": "res",
+        "name": "CornellBox-Original",
+        "triangulate": true
+    },
+    "stats_export": {
+        "stats_export_format": "console"
+    }
+}

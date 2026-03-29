@@ -8,7 +8,7 @@ compile_commands.json
 imgui.ini
 
 # Output
-output.ppm
+output*
 
 # Local config
 config.json

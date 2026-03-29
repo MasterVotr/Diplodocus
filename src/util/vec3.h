@@ -87,6 +87,9 @@ struct Vec3 {
 [[nodiscard]] constexpr Vec3 operator*(Vec3 a, const Vec3& b) noexcept { return a *= b; }
 [[nodiscard]] constexpr Vec3 operator/(Vec3 a, const Vec3& b) noexcept { return a /= b; }
 
+[[nodiscard]] constexpr Vec3 operator+(Vec3 a, float v) noexcept { return a += v; }
+[[nodiscard]] constexpr Vec3 operator+(float v, Vec3 a) noexcept { return a += v; }
+[[nodiscard]] constexpr Vec3 operator-(Vec3 a, float v) noexcept { return a -= v; }
 [[nodiscard]] constexpr Vec3 operator*(Vec3 a, float v) noexcept { return a *= v; }
 [[nodiscard]] constexpr Vec3 operator*(float v, Vec3 a) noexcept { return a *= v; }
 [[nodiscard]] constexpr Vec3 operator/(Vec3 a, float v) noexcept { return a /= v; }

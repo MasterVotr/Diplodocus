@@ -6,7 +6,7 @@
 #include <vector>
 
 // Constants
-const float kEpsilon = 1e-3;
+const float kEpsilon = 1e-6;
 const float kInfinity = std::numeric_limits<float>::max();
 
 // Comparison

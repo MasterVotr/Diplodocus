@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <limits>
 #include <ostream>
+#include <string_view>
 #include <vector>
+
+namespace diplodocus {
 
 // Constants
 const float kEpsilon = 1e-6;
@@ -48,3 +51,11 @@ template <typename... Args>
 static void PrintLnFmt(std::ostream& os, std::format_string<Args...> fmt, Args&&... args) {
     os << std::format(fmt, std::forward<Args>(args)...) << '\n';
 }
+
+// Enum parsing
+template <typename Enum>
+Enum ParseEnum(std::string_view) {
+    static_assert(sizeof(Enum) == 0, "ParseEnum not implemented fr this enum type");
+}
+
+}  // namespace diplodocus

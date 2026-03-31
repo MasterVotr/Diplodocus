@@ -2,6 +2,7 @@
 
 #include <json.hpp>
 
+#include "config/acceleration_structure_config.h"
 #include "config/image_export_config.h"
 #include "config/render_config.h"
 #include "config/scene_load_config.h"
@@ -18,6 +19,7 @@ class JsonConfigLoader : public ConfigLoader {
     static RenderConfig LoadRenderConfig(nlohmann::json json_config);
     static SceneLoadConfig LoadSceneLoadConfig(nlohmann::json json_config);
     static StatsExportConfig LoadStatsExportConfig(nlohmann::json json_config);
+    static AccelerationStructureConfig LoadAccelerationStructureConfig(nlohmann::json json_config);
 };
 
 }  // namespace diplodocus

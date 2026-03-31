@@ -47,8 +47,8 @@ class CpuRaytracer : public Renderer {
     static Vec3 LocalIllumination(const TraceContext& trace_ctx, const PixelContext& pixel_ctx, const RayHit& ray_hit);
     static bool IsShadowed(const TraceContext& trace_ctx, const RayHit& ray_hit, const PointLight& light);
     static Vec3 Phong(const TraceContext& trace_ctx, const RayHit& ray_hit, const PointLight& light);
-    static Ray ReflectionRay(const RayHit* rayhit);
-    static Ray ReflectionRay(const RayHit* rayhit, float ior);
+    static Ray ReflectionRay(const Ray& ray, const RayHit& ray_hit);
+    static Ray RefractionRay(const Ray& ray, const RayHit& ray_hit, float ior, float r_ior);
 };
 
 }  // namespace diplodocus

@@ -27,7 +27,7 @@ void ConsoleStatsExporter::ExportRaytracingStats(const RaytracingStats& rt_stats
     PrintLnFmt(std::cout, "----------------------------------------");
     PrintLnFmt(std::cout, "               Ray tracing              ");
     PrintLnFmt(std::cout, "----------------------------------------");
-    PrintLnFmt(std::cout, " Ray tracing time:    {} s", rt_stats.raytracing_time);
+    PrintLnFmt(std::cout, " Ray tracing time:    {:.3} s", rt_stats.raytracing_time);
     PrintLnFmt(std::cout, " Primary ray count:   {}", rt_stats.primary_ray_count);
     PrintLnFmt(std::cout, " Secondary ray count: {}", rt_stats.secondary_ray_count);
     PrintLnFmt(std::cout, " Shadow ray count:    {}", rt_stats.shadow_ray_count);
@@ -38,11 +38,11 @@ void ConsoleStatsExporter::ExportAccelerationStats(const AccelerationStats& acce
     PrintLnFmt(std::cout, "               Acceleration             ");
     PrintLnFmt(std::cout, "----------------------------------------");
     PrintLnFmt(std::cout, "# Construction:                         ");
-    PrintLnFmt(std::cout, " Build time:          {} ms", accel_stats.build_time);
+    PrintLnFmt(std::cout, " Build time:          {:.3} ms", accel_stats.build_time);
     PrintLnFmt(std::cout, " Node count:          {}", accel_stats.node_count);
     PrintLnFmt(std::cout, " Inner node count:    {}", accel_stats.inner_node_count);
     PrintLnFmt(std::cout, " Leaf node count:     {}", accel_stats.leaf_node_count);
-    PrintLnFmt(std::cout, " Memory consumption:  {} KiB", accel_stats.memory_consumption / 1000.0f);
+    PrintLnFmt(std::cout, " Memory consumption:  {:.3} KiB", accel_stats.memory_consumption / 1000.0f);
     PrintLnFmt(std::cout, "");
     PrintLnFmt(std::cout, "# Query:                                 ");
     PrintLnFmt(std::cout, " Query count:         {}", accel_stats.query_count);

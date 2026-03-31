@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util/vec3.h"
+
 namespace diplodocus {
 
 namespace color {

@@ -8,6 +8,8 @@
 
 #include "util/util.h"
 
+namespace diplodocus {
+
 struct Vec3 {
     float x = 0.0f;
     float y = 0.0f;
@@ -133,3 +135,5 @@ inline std::ostream& operator<<(std::ostream& os, const Vec3& vec) {
 static_assert(std::is_trivially_copyable_v<Vec3>);
 static_assert(std::is_standard_layout_v<Vec3>);
 static_assert(sizeof(Vec3) == 12);
+
+}  // namespace diplodocus

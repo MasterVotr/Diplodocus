@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/vertex.h"
+#include "util/util.h"
 #include "util/vec3.h"
 
 namespace diplodocus {
@@ -11,6 +12,7 @@ struct Triangle {
     Vertex v0, v1, v2;
     Vec3 geom_normal;
     int32_t material_id;
+    bool has_vertex_normals;
 
     float IntersectRay(const Ray& ray, float& b1, float& b2, bool backface_culling = true, float eps = kEpsilon) const;
     Vec3 SampleSurface(float r1, float r2) const;

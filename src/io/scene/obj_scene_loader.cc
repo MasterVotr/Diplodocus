@@ -75,13 +75,15 @@ bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) 
                                attrib.normals[3 * idx1.normal_index + 2]};
                 t.v2.normal = {attrib.normals[3 * idx2.normal_index + 0], attrib.normals[3 * idx2.normal_index + 1],
                                attrib.normals[3 * idx2.normal_index + 2]};
+                t.has_vertex_normals = true;
             } else {
                 if (!warned_about_vertex_normals) {
                     warned_about_vertex_normals = true;
-                    Logger::info(
+                    Logger::debug(
                         "ObjSceneLoader: Vertex normals not present in shape {}, only flat shading will be available",
                         shape.name);
                 }
+                t.has_vertex_normals = false;
             }
             t.material_id = shape.mesh.material_ids[f];
             scene.AddTriangle(t);
@@ -185,7 +187,7 @@ bool ObjSceneLoader::LoadMetadata(std::filesystem::path metadata_file_path, Scen
 }
 
 std::optional<Scene> ObjSceneLoader::Load(const SceneLoadConfig& config) const {
-    Logger::info("ObjSceneLoader: Loading {}", config.name);
+    Logger::info("ObjSceneLoader: Loading {}...", config.name);
     std::filesystem::path basepath = config.dirpath;
     basepath /= config.name;
 

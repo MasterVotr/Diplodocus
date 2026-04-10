@@ -10,7 +10,7 @@ add_subdirectory(third-party/glfw)
 
 # GLAD
 set(GLAD_DIR third-party/glad)
-add_library(glad STATIC ${GLAD_DIR}/src/glad.c)
+add_library(glad STATIC ${GLAD_DIR}/src/gl.c)
 target_include_directories(glad PUBLIC ${GLAD_DIR}/include)
 target_link_libraries(glad PUBLIC OpenGL::GL)
 

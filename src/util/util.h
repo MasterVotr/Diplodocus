@@ -1,6 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <format>
 #include <limits>
 #include <ostream>
 #include <string_view>

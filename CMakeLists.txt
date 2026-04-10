@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 project(
     guiapp
     VERSION 0.1.0
-    LANGUAGES CXX C
+    LANGUAGES CXX C CUDA
 )
 
 set(CMAKE_CXX_STANDARD 20)
@@ -15,7 +15,8 @@ include(Dependencies.cmake)
 
 # Application
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "src/*.cpp" "src/*.cc")
-add_executable(${PROJECT_NAME} "${SOURCE_FILES}")
+file(GLOB_RECURSE CUDA_SOURCE_FILES CONFIGURE_DEPENDS "src/*.cu")
+add_executable(${PROJECT_NAME} "${SOURCE_FILES}" "${CUDA_SOURCE_FILES}")
 
 add_compile_definitions(
     GLFW_INCLUDE_NONE

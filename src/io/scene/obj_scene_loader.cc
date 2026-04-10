@@ -152,11 +152,6 @@ bool ObjSceneLoader::LoadMetadata(std::filesystem::path metadata_file_path, Scen
                 Logger::debug("ObjSceneLoader: Could not load camera field of view metadata");
                 return false;
             }
-        } else if (token == "cam_near") {
-            if (!(input >> camera.near)) {
-                Logger::debug("ObjSceneLoader: Could not load camera near plane metadata");
-                return false;
-            }
         } else if (token == "cam_far") {
             if (!(input >> camera.far)) {
                 Logger::debug("ObjSceneLoader: Could not load camera far plane metadata");

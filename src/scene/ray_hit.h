@@ -12,6 +12,7 @@ struct RayHit {
     float b0, b1, b2;
     float t;
     int triangle_id = -1;
+    int material_id = -1;
     float epsilon = kEpsilon;
 };
 

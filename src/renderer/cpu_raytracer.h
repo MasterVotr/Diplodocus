@@ -2,6 +2,8 @@
 
 #include <atomic>
 
+#include "acceleration/acceleration_structure.h"
+#include "config/acceleration_structure_config.h"
 #include "config/render_config.h"
 #include "framebuffer/framebuffer.h"
 #include "renderer/renderer.h"
@@ -16,8 +18,8 @@ namespace diplodocus {
 
 class CpuRaytracer : public Renderer {
    public:
-    RenderResult StartRender(const RenderConfig& render_config, const Scene& scene, Framebuffer& framebuffer,
-                             Stats& stats) override;
+    RenderResult StartRender(const RenderConfig& render_config, const AccelerationStructureConfig& acceleration_config,
+                             const Scene& scene, Framebuffer& framebuffer, Stats& stats) override;
     void Reset() override;
     void Cancel() override { cancelled_ = true; }
     float GetProgress() const override { return progress_; }
@@ -26,6 +28,7 @@ class CpuRaytracer : public Renderer {
    private:
     struct TraceContext {
         const RenderConfig& render_config;
+        std::unique_ptr<AccelerationStructure> accel_struct;
         const Scene& scene;
         Framebuffer& framebuffer;
         Stats& stats;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/acceleration_structure_config.h"
 #include "config/render_config.h"
 #include "framebuffer/framebuffer.h"
 #include "scene/scene.h"
@@ -13,8 +14,9 @@ class Renderer {
    public:
     virtual ~Renderer() = default;
 
-    virtual RenderResult StartRender(const RenderConfig& render_config, const Scene& scene, Framebuffer& framebuffer,
-                                     Stats& stats) = 0;
+    virtual RenderResult StartRender(const RenderConfig& render_config,
+                                     const AccelerationStructureConfig& acceleration_config, const Scene& scene,
+                                     Framebuffer& framebuffer, Stats& stats) = 0;
     virtual void Reset() = 0;
     virtual void Cancel() = 0;
     virtual float GetProgress() const = 0;

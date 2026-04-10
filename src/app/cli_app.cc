@@ -38,7 +38,8 @@ void CliApp::Run() {
     app_ctx_.scene = std::move(scene_loader->Load(app_ctx_.config.scene_load_config).value());
 
     // Render image
-    renderer_->StartRender(app_ctx_.config.render_config, app_ctx_.scene, app_ctx_.framebuffer, app_ctx_.stats);
+    renderer_->StartRender(app_ctx_.config.render_config, app_ctx_.config.acceleration_structure_config, app_ctx_.scene,
+                           app_ctx_.framebuffer, app_ctx_.stats);
 
     // Export image
     auto image_exporter = CreateImageExporter(app_ctx_.config.image_export_config);

@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "acceleration/acceleration_structure_factory.h"
+#include "config/acceleration_structure_config.h"
 #include "config/render_config.h"
 #include "framebuffer/framebuffer.h"
 #include "renderer/renderer.h"
@@ -36,17 +38,6 @@ inline float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, ui
     return U01FromU32(HashU32(key));
 }
 
-inline float RayEpsilon(const Vec3& ray_hit_pos, float t_hit) {
-    float p_scale = std::max({std::fabs(ray_hit_pos.x), std::fabs(ray_hit_pos.y), std::fabs(ray_hit_pos.z), 1.0f});
-    float t_scale = std::max(t_hit, 1.0f);
-
-    float p_bias = 1e-6f * p_scale;
-    float t_bias = 1e-7f * t_scale;
-    float bias = std::max(p_bias, t_bias);
-
-    return std::clamp(bias, 1e-7f, 1e-3f);
-}
-
 inline Vec3 OffsetRayOrigin(const Vec3& pos, float eps, const Vec3& geom_normal, const Vec3& new_dir) {
     Vec3 offset = Dot(new_dir, geom_normal) > 0.0f ? geom_normal : -geom_normal;
     Vec3 new_pos = pos + offset * eps;
@@ -56,14 +47,16 @@ inline Vec3 OffsetRayOrigin(const Vec3& pos, float eps, const Vec3& geom_normal,
 
 }  // namespace
 
-RenderResult CpuRaytracer::StartRender(const RenderConfig& render_config, const Scene& scene, Framebuffer& framebuffer,
-                                       Stats& stats) {
-    Logger::info("CPU Renderer: Rendering...");
+RenderResult CpuRaytracer::StartRender(const RenderConfig& render_config,
+                                       const AccelerationStructureConfig& acceleration_config, const Scene& scene,
+                                       Framebuffer& framebuffer, Stats& stats) {
     framebuffer.Resize(render_config.width, render_config.height);
     framebuffer.Clear();
 
-    // TODO: Setup ADS using acceleration_config and CreateAccelerationStucture factory
+    std::unique_ptr<AccelerationStructure> accel_stuct = CreateAccelerationStucture(acceleration_config);
+    accel_stuct->Build(acceleration_config, stats, scene.Triangles());
 
+    Logger::info("CPU Renderer: Rendering...");
     Timer rt_time;
 
     const int w = framebuffer.GetWidth();
@@ -79,7 +72,7 @@ RenderResult CpuRaytracer::StartRender(const RenderConfig& render_config, const 
     const Vec3 qh = -cam_up * (gh / (static_cast<float>(h - 1)));
     const Vec3 p00 = cam_dir - cam_right * (gw / 2) + cam_up * (gh / 2);
 
-    TraceContext trace_ctx{render_config, scene, framebuffer, stats, p00, qw, qh};
+    TraceContext trace_ctx{render_config, std::move(accel_stuct), scene, framebuffer, stats, p00, qw, qh};
     for (int y = 0; y < h; y++) {
         progress_ = static_cast<float>(y) / static_cast<float>(h - 1);
         for (int x = 0; x < w; x++) {
@@ -105,7 +98,7 @@ void CpuRaytracer::Reset() {
 
 Vec3 CpuRaytracer::TracePixel(const TraceContext& trace_ctx, PixelContext pixel_ctx) {
     Vec3 r_d = Normalize(trace_ctx.p00 + (trace_ctx.qw * pixel_ctx.x) + (trace_ctx.qh * pixel_ctx.y));
-    Ray ray = {trace_ctx.scene.GetCamera().pos, r_d, kEpsilon, trace_ctx.scene.GetCamera().far};
+    Ray ray = {trace_ctx.scene.GetCamera().pos, r_d, trace_ctx.scene.GetCamera().far};
     Vec3 ray_color = TraceRay(trace_ctx, pixel_ctx, ray, 0);
     trace_ctx.stats.rt_stats.primary_ray_count += 1;
 
@@ -113,46 +106,16 @@ Vec3 CpuRaytracer::TracePixel(const TraceContext& trace_ctx, PixelContext pixel_
 }
 
 Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& pixel_ctx, const Ray& ray, int depth) {
-    bool hit = false;
-    float t_hit = ray.t_max;
-    int tri_hit;
-    float b1_hit, b2_hit;
-    auto triangles = trace_ctx.scene.Triangles();
-    size_t tri = 0;
-
-    // Intersection with the scene  TODO: Change to an ADS
-    float b1, b2, t;
-    for (; tri < triangles.size(); tri++) {
-        t = triangles[tri].IntersectRay(ray, b1, b2, trace_ctx.render_config.backface_culling);
-        if (t > ray.t_min && t != kInfinity && t < t_hit) {
-            hit = true;
-            t_hit = t;
-            tri_hit = tri;
-            b1_hit = b1;
-            b2_hit = b2;
-        }
-    }
+    // Intersection with the scene via acceleration structure
+    RayHit ray_hit;
+    bool hit =
+        trace_ctx.accel_struct->Intersect(trace_ctx.stats, ray, ray_hit, trace_ctx.render_config.backface_culling);
 
     // Background color for misses
     if (!hit) return trace_ctx.render_config.background_color;
 
-    // Calculate RayHit info
-    const Triangle& triangle_hit = triangles[tri_hit];
-    const Material& material = trace_ctx.scene.Materials()[triangle_hit.material_id];
-    RayHit ray_hit;
-    ray_hit.t = t_hit;
-    ray_hit.triangle_id = tri_hit;
-    ray_hit.pos = ray.At(t_hit);
-    ray_hit.b0 = 1.0f - b1_hit - b2_hit;
-    ray_hit.b1 = b1_hit;
-    ray_hit.b2 = b2_hit;
-    ray_hit.epsilon = RayEpsilon(ray_hit.pos, ray_hit.t);
-    ray_hit.geom_normal = triangle_hit.geom_normal;
-    ray_hit.normal = triangle_hit.geom_normal;
-    if (triangle_hit.has_vertex_normals) {
-        ray_hit.normal = Normalize(triangle_hit.v0.normal * ray_hit.b0 + triangle_hit.v1.normal * ray_hit.b1 +
-                                   triangle_hit.v2.normal * ray_hit.b2);
-    }
+    const Triangle& triangle_hit = trace_ctx.scene.Triangles()[ray_hit.triangle_id];
+    const Material& material = trace_ctx.scene.Materials()[ray_hit.material_id];
 
     // If light was hit, return its emissive value
     if (material.emission != Vec3(0.0f)) return material.emission;
@@ -167,8 +130,9 @@ Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& p
             Ray reflection_ray = ReflectionRay(ray, ray_hit);
 
             // Debug self intersection
+            float t, b1, b2;
             t = triangle_hit.IntersectRay(reflection_ray, b1, b2);
-            if (t > reflection_ray.t_min && t < reflection_ray.t_max) {
+            if (t > kEpsilon && t < reflection_ray.t_max) {
                 Logger::debug("Reflected ray self intersects - need to move origin more or increase t_min");
             }
 
@@ -182,8 +146,9 @@ Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& p
             Ray refraction_ray = RefractionRay(ray, ray_hit, material.ior, material.r_ior);
 
             // Debug self intersection
+            float t, b1, b2;
             t = triangle_hit.IntersectRay(refraction_ray, b1, b2);
-            if (t > refraction_ray.t_min && t < refraction_ray.t_max) {
+            if (t > kEpsilon && t < refraction_ray.t_max) {
                 Logger::debug("Refracted ray self intersects - need to move origin more or increase t_min");
             }
 
@@ -258,23 +223,10 @@ bool CpuRaytracer::IsShadowed(const TraceContext& trace_ctx, const RayHit& ray_h
     // Create shadow ray
     Vec3 shadow_dir = to_light / dist_to_light;
     Vec3 shadow_origin = OffsetRayOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, shadow_dir);
-    Ray shadow_ray = {shadow_origin, shadow_dir, 0.0f, dist_to_light * (1 - ray_hit.epsilon)};
+    Ray shadow_ray = {shadow_origin, shadow_dir, dist_to_light * (1 - ray_hit.epsilon)};
 
-    // Intersection with the scene  TODO: Change to an ADS
-    float b1, b2, t;
-    auto triangles = trace_ctx.scene.Triangles();
-    for (size_t tri = 0; tri < triangles.size(); tri++) {
-        t = triangles[tri].IntersectRay(shadow_ray, b1, b2, trace_ctx.render_config.backface_culling);
-        if (t > shadow_ray.t_min && t <= shadow_ray.t_max) {
-            if ((int)tri == ray_hit.triangle_id) {
-                Logger::error("Shadow ray self intersects - need to move origin more or increase t_min");
-                continue;
-            }
-            return true;
-        }
-    }
-
-    return false;
+    // Intersection with the scene via acceleration structure
+    return trace_ctx.accel_struct->IntersectAny(trace_ctx.stats, shadow_ray, false);
 }
 
 Vec3 CpuRaytracer::Phong(const TraceContext& trace_ctx, const RayHit& ray_hit, const PointLight& light) {
@@ -298,7 +250,7 @@ Ray CpuRaytracer::ReflectionRay(const Ray& ray, const RayHit& ray_hit) {
     Vec3 d_v = -ray.dir;
     Vec3 refl_dir = -d_v + 2.0f * Dot(d_v, ray_hit.normal) * ray_hit.normal;
     Vec3 refl_origin = OffsetRayOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refl_dir);
-    return {refl_origin, refl_dir, ray_hit.epsilon, ray.t_max};
+    return {refl_origin, refl_dir, ray.t_max};
 }
 
 Ray CpuRaytracer::RefractionRay(const Ray& ray, const RayHit& ray_hit, float ior, float r_ior) {
@@ -325,7 +277,7 @@ Ray CpuRaytracer::RefractionRay(const Ray& ray, const RayHit& ray_hit, float ior
 
     Vec3 refr_dir = -v / eta + (cos_i / eta - cos_t) * n;
     Vec3 refr_origin = OffsetRayOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refr_dir);
-    return {refr_origin, refr_dir, ray_hit.epsilon, ray.t_max};
+    return {refr_origin, refr_dir, ray.t_max};
 }
 
 }  // namespace diplodocus

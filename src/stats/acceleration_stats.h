@@ -12,6 +12,8 @@ struct AccelerationStats {
 
     // Query statistics
     int query_count = 0;
+    int intersection_count = 0;
+    int traversal_count = 0;
 };
 
 }  // namespace diplodocus

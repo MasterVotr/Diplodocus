@@ -37,7 +37,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
 
-set(ENABLE_DEBUG "Enable asan and deugging" OFF)
+option(ENABLE_DEBUG "Enable asan and deugging" OFF)
 
 if (ENABLE_DEBUG)
     target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -g)

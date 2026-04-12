@@ -1,0 +1,19 @@
+#include "acceleration/lbvh.h"
+
+namespace diplodocus {
+
+void LBvh::Build(const AccelerationStructureConfig& acceleration_structure_config, Stats& stats,
+                 std::span<const Triangle> triangles) {
+    triangles_ = triangles;
+    triangle_in
+    // Calculate triangle centroids and Morton codes
+    
+    // Radix sort
+    // Build bvh tree
+}
+
+bool LBvh::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backface_culling) const { return false; }
+
+bool LBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) const { return false; }
+
+}  // namespace diplodocus

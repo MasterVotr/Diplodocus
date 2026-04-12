@@ -1,0 +1,33 @@
+#pragma once
+
+#include <cstdint>
+#include <span>
+#include <vector>
+
+#include "acceleration/acceleration_structure.h"
+#include "scene/triangle.h"
+#include "util/vec3.h"
+
+namespace diplodocus {
+
+class LBvh : public AccelerationStructure {
+   public:
+    void Build(const AccelerationStructureConfig& acceleration_structure_config, Stats& stats,
+               std::span<const Triangle> triangles) override;
+    bool Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backface_culling) const override;
+    bool IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) const override;
+
+   private:
+    struct NodeSoA {
+        std::vector<Vec3> bbox_min;
+        std::vector<Vec3> bbox_max;
+        std::vector<int32_t> t_begin;
+        std::vector<int32_t> t_count;
+    };
+
+    std::span<const Triangle> triangles_;
+    std::vector<int32_t> triangle_indices_;
+    NodeSoA nodes_;
+};
+
+}  // namespace diplodocus

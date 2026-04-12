@@ -93,6 +93,7 @@ ImageExportConfig JsonConfigLoader::LoadImageExportConfig(nlohmann::json json_co
 RenderConfig JsonConfigLoader::LoadRenderConfig(nlohmann::json json_config) {
     RenderConfig render_config;
 
+    SetIfExists(json_config, "renderer_type", render_config.renderer_type);
     SetIfExists(json_config, "width", render_config.width);
     SetIfExists(json_config, "height", render_config.height);
     SetIfExists(json_config, "background_color", render_config.background_color);

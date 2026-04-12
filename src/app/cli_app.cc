@@ -5,11 +5,13 @@
 #include <filesystem>
 #include <memory>
 
+#include "config/render_config.h"
 #include "io/config/json_config_loader.h"
 #include "io/image/image_exporter_factory.h"
 #include "io/scene/scene_loader_factory.h"
 #include "io/stats/stats_exporter_factory.h"
 #include "renderer/cpu_raytracer.h"
+#include "renderer/gpu_raytracer.h"
 #include "util/logger.h"
 
 namespace diplodocus {
@@ -28,8 +30,9 @@ CliApp::CliApp(AppParameters app_params) : App(app_params) {
     auto config_loader_ = std::make_unique<JsonConfigLoader>();
     app_ctx_.config = config_loader_->Load(config_path).value();
 
-    // Setup Renderer
-    renderer_ = std::make_unique<CpuRaytracer>();
+    // Setup Renderers
+    renderers_.insert({RendererType::kCpu, std::make_unique<CpuRaytracer>()});
+    renderers_.insert({RendererType::kGpu, std::make_unique<GpuRaytracer>()});
 }
 
 void CliApp::Run() {
@@ -38,8 +41,9 @@ void CliApp::Run() {
     app_ctx_.scene = std::move(scene_loader->Load(app_ctx_.config.scene_load_config).value());
 
     // Render image
-    renderer_->StartRender(app_ctx_.config.render_config, app_ctx_.config.acceleration_structure_config, app_ctx_.scene,
-                           app_ctx_.framebuffer, app_ctx_.stats);
+    renderers_[app_ctx_.config.render_config.renderer_type]->StartRender(
+        app_ctx_.config.render_config, app_ctx_.config.acceleration_structure_config, app_ctx_.scene,
+        app_ctx_.framebuffer, app_ctx_.stats);
 
     // Export image
     auto image_exporter = CreateImageExporter(app_ctx_.config.image_export_config);

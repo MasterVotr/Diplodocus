@@ -12,8 +12,8 @@
 namespace diplodocus {
 
 // Constants
-const float kEpsilon = 1e-6;
-const float kInfinity = std::numeric_limits<float>::max();
+constexpr float kEpsilon = 1e-6;
+constexpr float kInfinity = std::numeric_limits<float>::max();
 
 // Comparison
 [[nodiscard]] inline bool AlmostEqual(float a, float b, float eps = kEpsilon) noexcept {

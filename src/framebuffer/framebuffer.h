@@ -16,10 +16,11 @@ class Framebuffer {
     int GetHeight() const;
     Vec3 GetPixel(int x, int y) const;
     std::span<const float> GetData() const;
+    float* GetDataPtr() { return data_.data(); }
 
+    void Clear(const Vec3& color = color::kBlack);
     void Resize(int width, int height);
     void SetPixel(int x, int y, const Vec3& c);
-    void Clear(const Vec3& color = color::kBlack);
 
    private:
     int width_, height_;

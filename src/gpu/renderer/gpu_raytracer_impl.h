@@ -1,7 +1,8 @@
 #pragma once
 
 #include "gpu/cuda_compat.h"
-#include "gpu/renderer/gpu_raytracer_kernels.h"
+#include "gpu/renderer/gpu_ray_context.h"
+#include "gpu/renderer/gpu_trace_context.h"
 
 namespace diplodocus::cuda_kernels {
 

@@ -4,7 +4,7 @@
 #include "gpu/cuda_utils.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
 #include "gpu/renderer/gpu_raytracer_impl.h"
-#include "gpu/renderer/gpu_raytracer_kernels.h"
+#include "gpu/renderer/gpu_renderer_api.h"
 #include "gpu/scene/gpu_ray.h"
 
 namespace diplodocus::cuda_kernels {
@@ -53,6 +53,9 @@ void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 
 }
 
 void LaunchRaytracingKernel(const GpuTraceContext& trace_ctx) {
+    // TraceRay uses recursion, so increase per-thread stack size to avoid device stack overflow.
+    CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 16 * 1024));
+
     int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
     int threads = 256;
     int blocks = (n + threads - 1) / threads;

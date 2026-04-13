@@ -238,12 +238,12 @@ Vec3 CpuRaytracer::Phong(const TraceContext& trace_ctx, const RayHit& ray_hit, c
     Vec3 d_v = Normalize(trace_ctx.scene.GetCamera().pos - ray_hit.pos);
     Vec3 d_r = Normalize(ray_hit.normal * 2.0f * Dot(ray_hit.normal, d_l) - d_l);
 
-    // Compute ambient, diffuse, specular, reflection and reflaction components
+    // Compute ambient, diffuse, specular
     auto I_a = light.color * color::kBlack;  // useless Ambient color
     auto I_d = light.color * material.diffuse * std::max(0.0f, Dot(ray_hit.normal, d_l));
     auto I_s = light.color * material.specular * std::pow(std::max(0.0f, Dot(d_v, d_r)), material.shininess);
 
-    return I_a + I_d + I_s;  // + I_e;
+    return I_a + I_d + I_s;
 }
 
 Ray CpuRaytracer::ReflectionRay(const Ray& ray, const RayHit& ray_hit) {

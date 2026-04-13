@@ -86,6 +86,10 @@ bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) 
                 t.has_vertex_normals = false;
             }
             t.material_id = shape.mesh.material_ids[f];
+            if (t.material_id < 0) {
+                Logger::info("ObjLoader: Triangle {} does not have a material (default = -1)",
+                             scene.Triangles().size());
+            }
             scene.AddTriangle(t);
 
             // Add area light if triangle is emissive

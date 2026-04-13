@@ -12,12 +12,13 @@ namespace diplodocus::cuda_kernels {
 constexpr float kEpsilon = 1e-6;
 constexpr float kInfinity = MAXFLOAT;
 
-DI float Sqrt(float x) { return sqrtf(x); }
-DI float Rsqrt(float x) { return rsqrtf(x); }
+DI float Pow(float b, float e) { return pow(b, e); }
+DI float Sqrt(float a) { return sqrtf(a); }
+DI float Rsqrt(float a) { return rsqrtf(a); }
 DI float Fmin(float a, float b) { return fminf(a, b); }
 DI float Fmax(float a, float b) { return fmaxf(a, b); }
-DI float Abs(float x) { return fabsf(x); }
-DI float Clamp(float x, float lo, float hi) { return Fmin(Fmax(x, lo), hi); }
+DI float Abs(float a) { return fabsf(a); }
+DI float Clamp(float a, float lo, float hi) { return Fmin(Fmax(a, lo), hi); }
 
 // constructors
 DI float3 Splat(float s) { return make_float3(s, s, s); }
@@ -25,10 +26,13 @@ DI float3 Splat(float s) { return make_float3(s, s, s); }
 // ops (prefer make_float3)
 DI float3 operator-(float3 a) { return make_float3(-a.x, -a.y, -a.z); }
 DI float3 operator+(float3 a, float3 b) { return make_float3(a.x + b.x, a.y + b.y, a.z + b.z); }
+DI float3 operator+(float3 a, float s) { return make_float3(a.x + s, a.y + s, a.z + s); }
+DI float3 operator+(float s, float3 a) { return make_float3(a.x + s, a.y + s, a.z + s); }
 DI float3 operator-(float3 a, float3 b) { return make_float3(a.x - b.x, a.y - b.y, a.z - b.z); }
-DI float3 operator*(float3 a, float b) { return make_float3(a.x * b, a.y * b, a.z * b); }
+DI float3 operator*(float3 a, float s) { return make_float3(a.x * s, a.y * s, a.z * s); }
+DI float3 operator*(float s, float3 a) { return make_float3(a.x * s, a.y * s, a.z * s); }
 DI float3 operator*(float3 a, float3 b) { return make_float3(a.x * b.x, a.y * b.y, a.z * b.z); }
-DI float3 operator/(float3 a, float v) { return a * (1.0f / v); }
+DI float3 operator/(float3 a, float s) { return a * (1.0f / s); }
 DI float3 operator/(float3 a, float3 b) { return make_float3(a.x / b.x, a.y / b.y, a.z / b.z); }
 
 // math

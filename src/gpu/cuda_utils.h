@@ -2,8 +2,10 @@
 
 #include <cuda_runtime.h>
 
+#include <cstdint>
 #include <cstdio>
-#include <cstdlib>
+
+#include "gpu/cuda_compat.h"
 
 namespace diplodocus::cuda_kernels {
 
@@ -38,6 +40,22 @@ inline void PrintCudaDiagnostics() {
     // Force context creation on device 0
     CUDA_CHECK(cudaSetDevice(0));
     CUDA_CHECK(cudaFree(0));  // common trick to initialize context
+}
+
+// Hashing
+DI uint32_t HashU32(uint32_t x) {
+    // Avalanche hash
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return x;
+}
+
+DI float U01FromU32(uint32_t x) {
+    // Use the top 24 bits -> float mantisa
+    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
 }
 
 }  // namespace diplodocus::cuda_kernels

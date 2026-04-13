@@ -7,7 +7,7 @@
 #define DI __device__ __forceinline__
 #else
 #define HD
-#define HDI
+#define HDI inline
 #define D
-#define DI
+#define DI inline
 #endif

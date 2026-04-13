@@ -22,7 +22,7 @@ constexpr float kInfinity = std::numeric_limits<float>::max();
 
 // Hashing
 [[nodiscard]] inline uint32_t HashU32(uint32_t x) {
-    // Simple, fast avalanche hash (good enough for sampling)
+    // Avalanche hash
     x ^= x >> 16;
     x *= 0x7feb352dU;
     x ^= x >> 15;
@@ -32,7 +32,7 @@ constexpr float kInfinity = std::numeric_limits<float>::max();
 }
 
 [[nodiscard]] static inline float U01FromU32(uint32_t x) {
-    // Use the top 24 bits -> exactly representable steps in float
+    // Use the top 24 bits -> flaot mantisa
     return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
 }
 

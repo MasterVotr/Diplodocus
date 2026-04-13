@@ -39,8 +39,8 @@ void Framebuffer::Clear(const Vec3& color) {
     for (int i = 0; i < pixels; i++) {
         int pixel_idx = i * 3;
         data_[pixel_idx + 0] = color.x;
-        data_[pixel_idx + 1] = color.x;
-        data_[pixel_idx + 2] = color.x;
+        data_[pixel_idx + 1] = color.y;
+        data_[pixel_idx + 2] = color.z;
     }
 }
 

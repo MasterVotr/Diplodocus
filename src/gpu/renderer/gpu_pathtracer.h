@@ -6,6 +6,6 @@
 
 namespace diplodocus::cuda_kernels {
 
-D float3 TraceRayBounce(GpuTraceContext trace_ctx, GpuRayContext bounce_state);
+D float3 TracePath(GpuTraceContext trace_ctx, GpuRayContext bounce_state);
 
 }  // namespace diplodocus::cuda_kernels

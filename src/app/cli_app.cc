@@ -11,7 +11,7 @@
 #include "io/scene/scene_loader_factory.h"
 #include "io/stats/stats_exporter_factory.h"
 #include "renderer/cpu_raytracer.h"
-#include "renderer/gpu_raytracer.h"
+#include "renderer/gpu_renderer.h"
 #include "util/logger.h"
 
 namespace diplodocus {
@@ -32,7 +32,7 @@ CliApp::CliApp(AppParameters app_params) : App(app_params) {
 
     // Setup Renderers
     renderers_.insert({RendererType::kCpu, std::make_unique<CpuRaytracer>()});
-    renderers_.insert({RendererType::kGpu, std::make_unique<GpuRaytracer>()});
+    renderers_.insert({RendererType::kGpu, std::make_unique<GpuRenderer>()});
 }
 
 void CliApp::Run() {

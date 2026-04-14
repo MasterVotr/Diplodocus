@@ -4,7 +4,7 @@
 
 namespace diplodocus {
 
-class GpuRaytracer : public Renderer {
+class GpuRenderer : public Renderer {
    public:
     RenderResult StartRender(const RenderConfig& render_config, const AccelerationStructureConfig& acceleration_config,
                              const Scene& scene, Framebuffer& framebuffer, Stats& stats) override;

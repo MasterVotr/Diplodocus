@@ -1,7 +1,7 @@
 #include <vector_types.h>
 
 #include "gpu/cuda_math.h"
-#include "gpu/renderer/gpu_raytracer_bounce.h"
+#include "gpu/renderer/gpu_pathtracer.h"
 #include "gpu/renderer/gpu_renderer_util.h"
 #include "gpu/scene/gpu_ray.h"
 #include "gpu/scene/gpu_ray_hit.h"
@@ -9,19 +9,21 @@
 
 namespace diplodocus::cuda_kernels {
 
-D float3 TraceRayBounce(GpuTraceContext trace_ctx, GpuRayContext ray_ctx) {
+D float3 TracePath(GpuTraceContext trace_ctx, GpuRayContext ray_ctx) {
     float3 radiance = Splat(0.0f);
     float3 throughput = Splat(1.0f);
     const auto& scene = trace_ctx.scene;
+    int seed = trace_ctx.render_config.seed;
 
     // Outer while loop
-    while (ray_ctx.depth < kMaxDepth) {
+    int max_depth = trace_ctx.render_config.max_depth;
+    while (ray_ctx.depth < max_depth) {
         GpuRayHit ray_hit;
         bool hit = DummyIntersect(scene, ray_ctx.ray, ray_hit, false);
 
         // Scene missed -> early exit with background color
         if (!hit) {
-            radiance = radiance + throughput * kBackgroundColor;
+            radiance = radiance + throughput * trace_ctx.render_config.background_color;
             break;
         }
 
@@ -60,7 +62,7 @@ D float3 TraceRayBounce(GpuTraceContext trace_ctx, GpuRayContext ray_ctx) {
         }
 
         // Use RandomAreaLightSample01 for random [0,1] prand number - maybe craete a separate function later?
-        float r = RandomAreaLightSample01(42, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.depth, 0, 0);
+        float r = RandomAreaLightSample01(seed, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.depth, 0, 0);
         if (r <= prob_refl) {  // Reflect
             float3 refl_dir = Reflect(ray_ctx.ray, ray_hit);
             float3 refl_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refl_dir);

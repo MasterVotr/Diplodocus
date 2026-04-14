@@ -22,6 +22,8 @@ struct RenderConfig {
     bool backface_culling = false;
     int max_depth = 4;
     int area_light_sample_cnt = 8;
+    int pixel_sample_cnt = 4;
+    int seed = 42;
 };
 
 }  // namespace diplodocus

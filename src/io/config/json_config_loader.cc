@@ -100,6 +100,8 @@ RenderConfig JsonConfigLoader::LoadRenderConfig(nlohmann::json json_config) {
     SetIfExists(json_config, "backface_culling", render_config.backface_culling);
     SetIfExists(json_config, "max_depth", render_config.max_depth);
     SetIfExists(json_config, "area_light_sample_cnt", render_config.area_light_sample_cnt);
+    SetIfExists(json_config, "pixel_sample_cnt", render_config.pixel_sample_cnt);
+    SetIfExists(json_config, "seed", render_config.seed);
 
     return render_config;
 }
@@ -129,6 +131,8 @@ AccelerationStructureConfig JsonConfigLoader::LoadAccelerationStructureConfig(nl
     SetIfExists(json_config, "acceleration_structure_type", acceleration_structure_config.acceleration_structure_type);
     SetIfExists(json_config, "max_depth", acceleration_structure_config.max_depth);
     SetIfExists(json_config, "max_triangles_in_leaf", acceleration_structure_config.max_triangles_in_leaf);
+    SetIfExists(json_config, "nn_search_radius", acceleration_structure_config.nn_search_radius);
+    SetIfExists(json_config, "kdop_size", acceleration_structure_config.kdop_size);
 
     return acceleration_structure_config;
 }

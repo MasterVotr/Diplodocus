@@ -3,10 +3,9 @@
 #include "gpu/cuda_math.h"
 #include "gpu/cuda_utils.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
-#include "gpu/renderer/gpu_raytracer_bounce.h"
-#include "gpu/renderer/gpu_raytracer_stack.h"
+#include "gpu/renderer/gpu_pathtracer.h"
+#include "gpu/renderer/gpu_raytracer.h"
 #include "gpu/renderer/gpu_renderer_api.h"
-#include "gpu/renderer/gpu_renderer_util.h"
 #include "gpu/scene/gpu_ray.h"
 
 namespace diplodocus::cuda_kernels {
@@ -36,7 +35,7 @@ __global__ void RaytracingStackKernel(GpuTraceContext trace_ctx) {
     ray_ctx.pixel_x = pixel_x;
     ray_ctx.pixel_y = pixel_y;
     ray_ctx.depth = 0;
-    float3 pixel_color = TraceRayStack(trace_ctx, ray_ctx);
+    float3 pixel_color = TraceRay(trace_ctx, ray_ctx);
 
     trace_ctx.framebuffer.data[idx] = pixel_color;
 }
@@ -56,7 +55,7 @@ __global__ void RaytracingBounceKernel(GpuTraceContext trace_ctx) {
     ray_ctx.pixel_x = pixel_x;
     ray_ctx.pixel_y = pixel_y;
     ray_ctx.depth = 0;
-    float3 pixel_color = TraceRayBounce(trace_ctx, ray_ctx);
+    float3 pixel_color = TracePath(trace_ctx, ray_ctx);
 
     trace_ctx.framebuffer.data[idx] = pixel_color;
 }
@@ -78,9 +77,9 @@ void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 
     CUDA_CHECK(cudaDeviceSynchronize());
 }
 
-void LaunchRaytracingStackKernel(const GpuTraceContext& trace_ctx) {
+void LaunchRaytracingKernel(const GpuTraceContext& trace_ctx) {
     // TraceRayStack uses recursion, so increase per-thread stack size to avoid device stack overflow.
-    CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, kMaxDepth * 2 * 1024));
+    CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, trace_ctx.render_config.max_depth * 2 * 1024));
 
     int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
     int threads = 256;
@@ -90,7 +89,7 @@ void LaunchRaytracingStackKernel(const GpuTraceContext& trace_ctx) {
     CUDA_CHECK(cudaDeviceSynchronize());
 }
 
-void LaunchRaytracingBounceKernel(const GpuTraceContext& trace_ctx) {
+void LaunchPathtracingKernel(const GpuTraceContext& trace_ctx) {
     int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
     int threads = 256;
     int blocks = (n + threads - 1) / threads;

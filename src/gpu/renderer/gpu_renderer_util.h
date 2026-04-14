@@ -13,10 +13,6 @@
 
 namespace diplodocus::cuda_kernels {
 
-constexpr int kSampleCount = 16;                         // TODO: Get from config
-constexpr int kMaxDepth = 8;                             // TODO: Get from config
-constexpr float3 kBackgroundColor = {0.0f, 0.0f, 0.0f};  // TODO: Get from config
-
 DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t light_id, uint32_t sample_idx,
                                  uint32_t dimension) {
     uint32_t key = 0;
@@ -140,6 +136,8 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixe
                                       const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
+    int seed = trace_ctx.render_config.seed;
+    int al_sample_cnt = trace_ctx.render_config.area_light_sample_cnt;
 
     for (int al = 0; al < scene.al_cnt; al++) {
         int al_t = scene.al_tri_id[al];
@@ -148,10 +146,10 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixe
         // If light hit dirrectly, just recturn light color
         if (al_t == ray_hit.triangle_id) return al_color;
 
-        for (int s = 0; s < kSampleCount; s++) {
+        for (int s = 0; s < al_sample_cnt; s++) {
             // Point light sample
-            float r1 = RandomAreaLightSample01(42, pixel_x, pixel_y, al, s, 0);
-            float r2 = RandomAreaLightSample01(42, pixel_x, pixel_y, al, s, 1);
+            float r1 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 0);
+            float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
             if (IsShadowed(trace_ctx, ray_hit, pl_pos)) continue;
@@ -162,7 +160,7 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixe
             float3 d_l = to_light / dist_to_light;
             float w = (scene.al_surface_area[al] * Fmax(0.0f, Dot(scene.tri_goem_norm[al_t], (-d_l))) *
                        Fmax(0.0f, Dot(ray_hit.normal, d_l))) /
-                      ((kSampleCount * dist_to_light * dist_to_light) + kEpsilon);
+                      ((al_sample_cnt * dist_to_light * dist_to_light) + kEpsilon);
             float3 pl_color = al_color * w;
 
             // Phong

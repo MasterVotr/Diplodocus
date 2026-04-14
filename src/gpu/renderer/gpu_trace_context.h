@@ -2,13 +2,14 @@
 
 #include <vector_types.h>
 
+#include "gpu/config/gpu_render_config.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
 #include "gpu/scene/gpu_scene.h"
 
 namespace diplodocus::cuda_kernels {
 
 struct GpuTraceContext {
-    // GpuConfig config;
+    GpuRenderConfig render_config;
     GpuSceneView scene;
     GpuFramebufferView framebuffer;
     // GpuStats stats;

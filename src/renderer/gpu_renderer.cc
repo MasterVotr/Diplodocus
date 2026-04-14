@@ -1,5 +1,7 @@
-#include "renderer/gpu_raytracer.h"
+#include "renderer/gpu_renderer.h"
 
+#include "gpu/config/gpu_config_bridge.h"
+#include "gpu/config/gpu_render_config.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
 #include "gpu/renderer/gpu_renderer_api.h"
 #include "gpu/scene/gpu_scene.h"
@@ -9,9 +11,9 @@
 
 namespace diplodocus {
 
-RenderResult GpuRaytracer::StartRender(const RenderConfig& render_config,
-                                       const AccelerationStructureConfig& acceleration_config, const Scene& scene,
-                                       Framebuffer& framebuffer, Stats& stats) {
+RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
+                                      const AccelerationStructureConfig& acceleration_config, const Scene& scene,
+                                      Framebuffer& framebuffer, Stats& stats) {
     // cuda_kernels::HelloCunda();
 
     Logger::info("GPU Renderer: Rendering...");
@@ -36,12 +38,13 @@ RenderResult GpuRaytracer::StartRender(const RenderConfig& render_config,
     cuda_kernels::GpuFramebuffer gpu_framebuffer;
     gpu_framebuffer.Resize(render_config.width, render_config.height);
     cuda_kernels::GpuScene gpu_scene(scene);
-    // TODO: transfer config, stats
+    cuda_kernels::GpuRenderConfig gpu_render_config = cuda_kernels::BridgeRenderConfig(render_config);
+    // TODO: transfer stats
 
     // Create trace context
     cuda_kernels::GpuTraceContext gpu_trace_ctx{
-        gpu_scene.GetSceneView(), gpu_framebuffer.GetFramebufferView(), {p00.x, p00.y, p00.z}, {qw.x, qw.y, qw.z},
-        {qh.x, qh.y, qh.z},       {cam_pos.x, cam_pos.y, cam_pos.z},    scene.GetCamera().far,
+        gpu_render_config,  gpu_scene.GetSceneView(), gpu_framebuffer.GetFramebufferView(), {p00.x, p00.y, p00.z},
+        {qw.x, qw.y, qw.z}, {qh.x, qh.y, qh.z},       {cam_pos.x, cam_pos.y, cam_pos.z},    scene.GetCamera().far,
     };
 
     // Launch Kernels
@@ -50,7 +53,7 @@ RenderResult GpuRaytracer::StartRender(const RenderConfig& render_config,
         {render_config.background_color.x, render_config.background_color.y, render_config.background_color.z});
 
     // cuda_kernels::LaunchRaytracingStackKernel(gpu_trace_ctx);
-    cuda_kernels::LaunchRaytracingBounceKernel(gpu_trace_ctx);
+    cuda_kernels::LaunchPathtracingKernel(gpu_trace_ctx);
 
     // Download framebuffer from device to host
     gpu_framebuffer.Download(framebuffer);
@@ -60,6 +63,6 @@ RenderResult GpuRaytracer::StartRender(const RenderConfig& render_config,
     return RenderResult::kDone;
 }
 
-void GpuRaytracer::Reset() {}
+void GpuRenderer::Reset() {}
 
 }  // namespace diplodocus

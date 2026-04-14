@@ -3,8 +3,10 @@
 #include "gpu/cuda_math.h"
 #include "gpu/cuda_utils.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
-#include "gpu/renderer/gpu_raytracer_impl.h"
+#include "gpu/renderer/gpu_raytracer_bounce.h"
+#include "gpu/renderer/gpu_raytracer_stack.h"
 #include "gpu/renderer/gpu_renderer_api.h"
+#include "gpu/renderer/gpu_renderer_util.h"
 #include "gpu/scene/gpu_ray.h"
 
 namespace diplodocus::cuda_kernels {
@@ -19,7 +21,7 @@ __global__ void ClearFramebufferKernel(GpuFramebufferView framebuffer, float3 co
     framebuffer.data[idx] = color;
 }
 
-__global__ void RaytracingKernel(GpuTraceContext trace_ctx) {
+__global__ void RaytracingStackKernel(GpuTraceContext trace_ctx) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
     if (idx >= n) return;
@@ -29,8 +31,32 @@ __global__ void RaytracingKernel(GpuTraceContext trace_ctx) {
     float3 ray_dir = Normalize(trace_ctx.p00 + (trace_ctx.qw * pixel_x) + (trace_ctx.qh * pixel_y));
     GpuRay ray{trace_ctx.cam_pos, ray_dir, trace_ctx.cam_far};
 
-    GpuRayContext ray_ctx{ray, pixel_x, pixel_y, 0};
-    float3 pixel_color = TraceRay(trace_ctx, ray_ctx);
+    GpuRayContext ray_ctx;
+    ray_ctx.ray = ray;
+    ray_ctx.pixel_x = pixel_x;
+    ray_ctx.pixel_y = pixel_y;
+    ray_ctx.depth = 0;
+    float3 pixel_color = TraceRayStack(trace_ctx, ray_ctx);
+
+    trace_ctx.framebuffer.data[idx] = pixel_color;
+}
+
+__global__ void RaytracingBounceKernel(GpuTraceContext trace_ctx) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
+    if (idx >= n) return;
+    int pixel_x = idx % trace_ctx.framebuffer.width;
+    int pixel_y = idx / trace_ctx.framebuffer.width;
+
+    float3 ray_dir = Normalize(trace_ctx.p00 + (trace_ctx.qw * pixel_x) + (trace_ctx.qh * pixel_y));
+    GpuRay ray{trace_ctx.cam_pos, ray_dir, trace_ctx.cam_far};
+
+    GpuRayContext ray_ctx;
+    ray_ctx.ray = ray;
+    ray_ctx.pixel_x = pixel_x;
+    ray_ctx.pixel_y = pixel_y;
+    ray_ctx.depth = 0;
+    float3 pixel_color = TraceRayBounce(trace_ctx, ray_ctx);
 
     trace_ctx.framebuffer.data[idx] = pixel_color;
 }
@@ -52,14 +78,23 @@ void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 
     CUDA_CHECK(cudaDeviceSynchronize());
 }
 
-void LaunchRaytracingKernel(const GpuTraceContext& trace_ctx) {
-    // TraceRay uses recursion, so increase per-thread stack size to avoid device stack overflow.
-    CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 16 * 1024));
+void LaunchRaytracingStackKernel(const GpuTraceContext& trace_ctx) {
+    // TraceRayStack uses recursion, so increase per-thread stack size to avoid device stack overflow.
+    CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, kMaxDepth * 2 * 1024));
 
     int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
     int threads = 256;
     int blocks = (n + threads - 1) / threads;
-    RaytracingKernel<<<blocks, threads>>>(trace_ctx);
+    RaytracingStackKernel<<<blocks, threads>>>(trace_ctx);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+void LaunchRaytracingBounceKernel(const GpuTraceContext& trace_ctx) {
+    int n = trace_ctx.framebuffer.width * trace_ctx.framebuffer.height;
+    int threads = 256;
+    int blocks = (n + threads - 1) / threads;
+    RaytracingBounceKernel<<<blocks, threads>>>(trace_ctx);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }

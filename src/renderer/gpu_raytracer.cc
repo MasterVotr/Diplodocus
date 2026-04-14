@@ -49,7 +49,8 @@ RenderResult GpuRaytracer::StartRender(const RenderConfig& render_config,
         gpu_framebuffer.GetFramebufferView(),
         {render_config.background_color.x, render_config.background_color.y, render_config.background_color.z});
 
-    cuda_kernels::LaunchRaytracingKernel(gpu_trace_ctx);
+    // cuda_kernels::LaunchRaytracingStackKernel(gpu_trace_ctx);
+    cuda_kernels::LaunchRaytracingBounceKernel(gpu_trace_ctx);
 
     // Download framebuffer from device to host
     gpu_framebuffer.Download(framebuffer);

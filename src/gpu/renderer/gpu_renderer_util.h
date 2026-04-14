@@ -1,10 +1,14 @@
+#pragma once
+
 #include <vector_types.h>
 
 #include "gpu/cuda_math.h"
-#include "gpu/renderer/gpu_raytracer_impl.h"
+#include "gpu/cuda_utils.h"
+#include "gpu/renderer/gpu_trace_context.h"
 #include "gpu/scene/gpu_ray.h"
 #include "gpu/scene/gpu_ray_hit.h"
 #include "gpu/scene/gpu_ray_ops.h"
+#include "gpu/scene/gpu_scene.h"
 #include "gpu/scene/gpu_triangle_ops.h"
 
 namespace diplodocus::cuda_kernels {
@@ -26,10 +30,9 @@ DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32
     return U01FromU32(HashU32(key));
 }
 
-DI bool DummyIntersect(const GpuSceneView& scene, const GpuRayContext& ray_ctx, GpuRayHit& ray_hit,
-                       bool backface_culling) {
+DI bool DummyIntersect(const GpuSceneView& scene, const GpuRay& ray, GpuRayHit& ray_hit, bool backface_culling) {
     bool hit = false;
-    float t_hit = ray_ctx.ray.t_max;
+    float t_hit = ray.t_max;
     int tri_hit;
     float b1_hit, b2_hit;
 
@@ -40,7 +43,7 @@ DI bool DummyIntersect(const GpuSceneView& scene, const GpuRayContext& ray_ctx, 
     // Intersect with scene
     float t, b1, b2;
     for (int tri = 0; tri < scene.tri_cnt; tri++) {
-        t = IntersectRayTriangle(tri_v0_pos[tri], tri_v1_pos[tri], tri_v2_pos[tri], ray_ctx.ray, b1, b2, false);
+        t = IntersectRayTriangle(tri_v0_pos[tri], tri_v1_pos[tri], tri_v2_pos[tri], ray, b1, b2, false);
         if (t > kEpsilon && t < t_hit) {
             hit = true;
             t_hit = t;
@@ -54,7 +57,7 @@ DI bool DummyIntersect(const GpuSceneView& scene, const GpuRayContext& ray_ctx, 
     if (!hit) return false;
 
     // Calculate RayHit info
-    ray_hit.pos = RayAt(ray_ctx.ray, t_hit);
+    ray_hit.pos = RayAt(ray, t_hit);
     ray_hit.normal = scene.tri_goem_norm[tri_hit];
     ray_hit.geom_normal = scene.tri_goem_norm[tri_hit];
     ray_hit.b0 = 1.0f - b1_hit - b2_hit;
@@ -108,8 +111,7 @@ DI bool IsShadowed(const GpuTraceContext& trace_ctx, const GpuRayHit& ray_hit, f
     return DummyIntersectAny(trace_ctx.scene, shadow_ray, false);
 }
 
-DI float3 LocalIlluminationPointLights(const GpuTraceContext& trace_ctx, const GpuRayContext& ray_ctx,
-                                       const GpuRayHit& ray_hit) {
+DI float3 LocalIlluminationPointLights(const GpuTraceContext& trace_ctx, const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
 
@@ -134,7 +136,7 @@ DI float3 LocalIlluminationPointLights(const GpuTraceContext& trace_ctx, const G
     return color;
 }
 
-DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, const GpuRayContext& ray_ctx,
+DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixel_x, int pixel_y,
                                       const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
@@ -148,8 +150,8 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, const Gp
 
         for (int s = 0; s < kSampleCount; s++) {
             // Point light sample
-            float r1 = RandomAreaLightSample01(42, ray_ctx.pixel_x, ray_ctx.pixel_y, al, s, 0);
-            float r2 = RandomAreaLightSample01(42, ray_ctx.pixel_x, ray_ctx.pixel_y, al, s, 1);
+            float r1 = RandomAreaLightSample01(42, pixel_x, pixel_y, al, s, 0);
+            float r2 = RandomAreaLightSample01(42, pixel_x, pixel_y, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
             if (IsShadowed(trace_ctx, ray_hit, pl_pos)) continue;
@@ -213,48 +215,18 @@ DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float 
     return refr_dir;
 }
 
-D float3 TraceRay(GpuTraceContext trace_ctx, GpuRayContext ray_ctx) {
-    // Scene intersection
-    GpuRayHit ray_hit;
-    bool hit = DummyIntersect(trace_ctx.scene, ray_ctx, ray_hit, false);
-    if (!hit) return kBackgroundColor;
+DI float SchlickFresnel(const GpuTraceContext& trace_ctx, const GpuRay& ray, const GpuRayHit& ray_hit) {
+    float cos_i = Fmax(0.0f, Dot(-ray.dir, ray_hit.normal));
+    float eta_i = 1.0f;
+    float eta_t = trace_ctx.scene.mat_ior[ray_hit.material_id];
+    float r0 = (eta_i - eta_t) / (eta_i + eta_t);
+    r0 = r0 * r0;
+    float fresnel = r0 + (1.0f - r0) * Pow(1.0f - cos_i, 5.0f);
 
-    // If light was hit, return its emissive value
-    const auto& mat_emission = trace_ctx.scene.mat_emission[ray_hit.material_id];
-    if (!AlmostEqual(mat_emission, Splat(0.0f))) return mat_emission;
-
-    // LocalIllumination
-    float3 ray_color = Splat(0.0f);
-    // ray_color = ray_color + LocalIlluminationPointLights(trace_ctx, ray_ctx, ray_hit);
-    ray_color = ray_color + LocalIlluminationAreaLights(trace_ctx, ray_ctx, ray_hit);
-
-    if (ray_ctx.depth < kMaxDepth) {
-        // if (ray_ctx.depth > 1) printf("Pixel [%d, %d] at depth %d\n", ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.depth);
-        // Reflection
-        if (!AlmostEqual(trace_ctx.scene.mat_specular[ray_hit.material_id], Splat(0.0f))) {
-            float3 refl_dir = Reflect(ray_ctx.ray, ray_hit);
-            float3 refl_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refl_dir);
-            GpuRay refl_ray{refl_origin, refl_dir, ray_ctx.ray.t_max};
-            GpuRayContext new_ray_ctx = ray_ctx;
-            new_ray_ctx.ray = refl_ray;
-            new_ray_ctx.depth = ray_ctx.depth + 1;
-            ray_color = ray_color + TraceRay(trace_ctx, new_ray_ctx);
-        }
-
-        // Refraction
-        if (!AlmostEqual(trace_ctx.scene.mat_transmittance[ray_hit.material_id], Splat(0.0f))) {
-            float3 refr_dir = Refract(ray_ctx.ray, ray_hit, trace_ctx.scene.mat_ior[ray_hit.material_id],
-                                      trace_ctx.scene.mat_r_ior[ray_hit.material_id]);
-            float3 refr_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refr_dir);
-            GpuRay refr_ray{refr_origin, refr_dir, ray_ctx.ray.t_max};
-            GpuRayContext new_ray_ctx = ray_ctx;
-            new_ray_ctx.ray = refr_ray;
-            new_ray_ctx.depth = ray_ctx.depth + 1;
-            ray_color = ray_color + TraceRay(trace_ctx, new_ray_ctx);
-        }
-    }
-
-    return ray_color;
+    return fresnel;
 }
+
+// Calculates the brightness of color (based on ITU-R Recommendation 709)
+DI float Luminance(float3 color) { return 0.2126f * color.x + 0.7152 * color.y + 0.0722f * color.z; }
 
 }  // namespace diplodocus::cuda_kernels

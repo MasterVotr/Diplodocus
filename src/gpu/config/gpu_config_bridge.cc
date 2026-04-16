@@ -52,7 +52,7 @@ GpuAccelerationStructureConfig BridgeAccelerationConfig(const AccelerationStruct
         }
     };
 
-    gpu_acceleration_config.max_triangles_in_leaf = acceleration_config.max_triangles_in_leaf;
+    gpu_acceleration_config.max_triangles_per_leaf = acceleration_config.max_triangles_per_leaf;
     gpu_acceleration_config.nn_search_radius = acceleration_config.nn_search_radius;
     gpu_acceleration_config.kdop_size = acceleration_config.kdop_size;
 

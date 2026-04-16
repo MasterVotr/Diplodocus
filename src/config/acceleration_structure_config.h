@@ -21,11 +21,10 @@ inline AccelerationStructureType ParseEnum<AccelerationStructureType>(std::strin
 
 struct AccelerationStructureConfig {
     AccelerationStructureType acceleration_structure_type = AccelerationStructureType::kDummy;
-    int max_depth = 16;
-    int max_triangles_in_leaf = 4;
+    int max_depth = 32;
     int nn_search_radius = 10;
     int kdop_size = 32;
-    int max_triangles_per_BB = 4;
+    int max_triangles_per_leaf = 4;
     int bin_count = 16;
 };
 

@@ -130,10 +130,9 @@ AccelerationStructureConfig JsonConfigLoader::LoadAccelerationStructureConfig(nl
 
     SetIfExists(json_config, "acceleration_structure_type", acceleration_structure_config.acceleration_structure_type);
     SetIfExists(json_config, "max_depth", acceleration_structure_config.max_depth);
-    SetIfExists(json_config, "max_triangles_in_leaf", acceleration_structure_config.max_triangles_in_leaf);
+    SetIfExists(json_config, "max_triangles_per_leaf", acceleration_structure_config.max_triangles_per_leaf);
     SetIfExists(json_config, "nn_search_radius", acceleration_structure_config.nn_search_radius);
     SetIfExists(json_config, "kdop_size", acceleration_structure_config.kdop_size);
-    SetIfExists(json_config, "max_triangles_per_BB", acceleration_structure_config.max_triangles_per_BB);
     SetIfExists(json_config, "bin_count", acceleration_structure_config.bin_count);
 
     return acceleration_structure_config;

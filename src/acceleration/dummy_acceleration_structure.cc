@@ -69,6 +69,7 @@ bool DummyAccelerationStucture::IntersectAny(Stats& stats, const Ray& ray, bool 
     float b1, b2, t;
     for (size_t tri = 0; tri < triangles_.size(); tri++) {
         t = triangles_[tri].IntersectRay(ray, b1, b2, backface_culling);
+        stats.accel_stats.intersection_count += 1;
         if (t > kEpsilon && t <= ray.t_max) {
             return true;
         }

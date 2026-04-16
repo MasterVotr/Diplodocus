@@ -1,5 +1,6 @@
 #pragma once
 
+#include "acceleration/aabb.h"
 #include "scene/vertex.h"
 #include "util/util.h"
 #include "util/vec3.h"
@@ -30,6 +31,16 @@ inline float CalculateTriangleSurfaceArea(const Triangle& t) {
     const Vec3 c = Cross(u, v);
     const float c_magnitude = Length(c);
     return 0.5 * c_magnitude;
+}
+
+inline Vec3 CalculateTriangleCentroid(const Triangle& t) { return (t.v0.pos + t.v1.pos + t.v2.pos) / 3.0f; }
+
+inline AABB CalculateTriangleAabb(const Triangle& t) {
+    Vec3 min = {std::min({t.v0.pos.x, t.v1.pos.x, t.v2.pos.x}), std::min({t.v0.pos.y, t.v1.pos.y, t.v2.pos.y}),
+                std::min({t.v0.pos.z, t.v1.pos.z, t.v2.pos.z})};
+    Vec3 max = {std::max({t.v0.pos.x, t.v1.pos.x, t.v2.pos.x}), std::max({t.v0.pos.y, t.v1.pos.y, t.v2.pos.y}),
+                std::max({t.v0.pos.z, t.v1.pos.z, t.v2.pos.z})};
+    return AABB(min, max);
 }
 
 }  // namespace diplodocus

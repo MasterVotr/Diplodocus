@@ -42,10 +42,12 @@ void ConsoleStatsExporter::ExportAccelerationStats(const AccelerationStats& acce
     PrintLnFmt(std::cout, " Node count:          {}", accel_stats.node_count);
     PrintLnFmt(std::cout, " Inner node count:    {}", accel_stats.inner_node_count);
     PrintLnFmt(std::cout, " Leaf node count:     {}", accel_stats.leaf_node_count);
-    PrintLnFmt(std::cout, " Memory consumption:  {:.3} KiB", accel_stats.memory_consumption / 1000.0f);
+    PrintLnFmt(std::cout, " Memory consumption:  {:.3} MB", accel_stats.memory_consumption / 1e6f);
     PrintLnFmt(std::cout, "");
     PrintLnFmt(std::cout, "# Query:                                 ");
     PrintLnFmt(std::cout, " Query count:         {}", accel_stats.query_count);
+    PrintLnFmt(std::cout, " Intersection count:  {}", accel_stats.intersection_count);
+    PrintLnFmt(std::cout, " Traversal count:     {}", accel_stats.traversal_count);
 }
 
 }  // namespace diplodocus

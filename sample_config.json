@@ -1,23 +1,19 @@
 {
     "image_export": {
-        "image_export_format": "ppm",
-        "filepath": "output.ppm"
+        "filepath": "out/output.ppm"
     },
     "render": {
+        "renderer_type": "cpu",
         "width": 512,
         "height": 512,
-        "background_color": [ 1.0, 0.0, 0.0 ],
-        "backface_culling": true,
-        "max_depth": 0,
-        "area_light_sample_cnt": 4
+        "background_color": [ 0.0, 0.0, 0.0 ],
+        "max_depth": 8,
+        "area_light_sample_cnt": 8
+    },
+    "acceleration_structure": {
+        "acceleration_structure_type": "sbvh"
     },
     "scene_load": {
-        "scene_load_format": "obj",
-        "dirpath": "res",
-        "name": "CornellBox-Original",
-        "triangulate": true
-    },
-    "stats_export": {
-        "stats_export_format": "console"
+        "name": "CornellBox-Bunny"
     }
 }

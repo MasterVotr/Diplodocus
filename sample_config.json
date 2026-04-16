@@ -1,6 +1,6 @@
 {
     "image_export": {
-        "filepath": "out/output.ppm"
+        "filepath": "output.ppm"
     },
     "render": {
         "renderer_type": "cpu",

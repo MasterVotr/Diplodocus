@@ -47,7 +47,9 @@ class CpuRaytracer : public Renderer {
 
     static Vec3 TracePixel(const TraceContext& trace_ctx, PixelContext pixel_ctx);
     static Vec3 TraceRay(const TraceContext& trace_ctx, const PixelContext& pixel_ctx, const Ray& ray, int depth);
-    static Vec3 LocalIllumination(const TraceContext& trace_ctx, const PixelContext& pixel_ctx, const RayHit& ray_hit);
+    static Vec3 LocalIlluminationAreaLights(const TraceContext& trace_ctx, const PixelContext& pixel_ctx,
+                                            const RayHit& ray_hit);
+    static Vec3 LocalIlluminationPointLights(const TraceContext& trace_ctx, const RayHit& ray_hit);
     static bool IsShadowed(const TraceContext& trace_ctx, const RayHit& ray_hit, const PointLight& light);
     static Vec3 Phong(const TraceContext& trace_ctx, const RayHit& ray_hit, const PointLight& light);
     static Ray ReflectionRay(const Ray& ray, const RayHit& ray_hit);

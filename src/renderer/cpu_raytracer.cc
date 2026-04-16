@@ -120,8 +120,10 @@ Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& p
     // If light was hit, return its emissive value
     if (material.emission != Vec3(0.0f)) return material.emission;
 
-    // Phong/Cook-Torrens
-    Vec3 ray_color = LocalIllumination(trace_ctx, pixel_ctx, ray_hit);
+    // LocalIllumination
+    Vec3 ray_color = color::kBlack;
+    ray_color += LocalIlluminationAreaLights(trace_ctx, pixel_ctx, ray_hit);
+    // ray_color += LocalIlluminationPointLights(trace_ctx, ray_hit);
 
     if (depth < trace_ctx.render_config.max_depth) {
         // Reflection
@@ -160,21 +162,9 @@ Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& p
     return ray_color;
 }
 
-Vec3 CpuRaytracer::LocalIllumination(const TraceContext& trace_ctx, const PixelContext& pixel_ctx,
-                                     const RayHit& ray_hit) {
+Vec3 CpuRaytracer::LocalIlluminationAreaLights(const TraceContext& trace_ctx, const PixelContext& pixel_ctx,
+                                               const RayHit& ray_hit) {
     Vec3 color = color::kBlack;
-    // Point lights
-    for (const auto& point_light : trace_ctx.scene.PointLights()) {
-        // If shadowed discard
-        if (IsShadowed(trace_ctx, ray_hit, point_light)) continue;
-
-        // Light attenuation TODO
-        // float d = Length(point_light.pos - ray_hit.pos);
-        // Vec3 I_l = (point_light.color * point_light.power) / ((d * d) + kEpsilon);
-        //
-        // color += Phong(trace_ctx, ray_hit, {point_light.pos, I_l, point_light.power});
-        color += Phong(trace_ctx, ray_hit, point_light);
-    }
 
     // Area Lights
     int sample_cnt = trace_ctx.render_config.area_light_sample_cnt;
@@ -207,6 +197,23 @@ Vec3 CpuRaytracer::LocalIllumination(const TraceContext& trace_ctx, const PixelC
             // Sample light contribution
             color += Phong(trace_ctx, ray_hit, light_sample);
         }
+    }
+
+    return color;
+}
+
+Vec3 CpuRaytracer::LocalIlluminationPointLights(const TraceContext& trace_ctx, const RayHit& ray_hit) {
+    Vec3 color = color::kBlack;
+    // Point lights
+    for (const auto& point_light : trace_ctx.scene.PointLights()) {
+        // If shadowed discard
+        if (IsShadowed(trace_ctx, ray_hit, point_light)) continue;
+
+        // Light attenuation
+        float d = Length(point_light.pos - ray_hit.pos);
+        Vec3 I_l = (point_light.color * point_light.power) / ((d * d) + kEpsilon);
+
+        color += Phong(trace_ctx, ray_hit, {point_light.pos, I_l, point_light.power});
     }
 
     return color;

@@ -1,8 +1,8 @@
 #include "acceleration/sbvh.h"
 
 #include <numeric>
-#include <queue>
 #include <span>
+#include <stack>
 
 #include "config/acceleration_structure_config.h"
 #include "scene/ray.h"
@@ -60,98 +60,88 @@ void SBvh::Build(const AccelerationStructureConfig& accel_config, Stats& stats, 
 bool SBvh::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backface_culling) const {
     stats.accel_stats.query_count++;
 
-    float best_t = ray.t_max;
-    bool found_hit = false;
+    bool hit = false;
+    float t_hit = ray.t_max;
+    int tri_hit;
+    float b1_hit, b2_hit;
 
-    struct TraversalNode {
-        size_t node_idx;
-        float dist_to_aabb;
-    };
+    std::stack<size_t> stack;
+    stack.push(0);
 
-    auto cmp = [](const TraversalNode& a, const TraversalNode& b) {
-        return a.dist_to_aabb > b.dist_to_aabb;  // min-heap: smallest distance first
-    };
-    std::priority_queue<TraversalNode, std::vector<TraversalNode>, decltype(cmp)> pq(cmp);
-    pq.emplace(0, 0.0f);
-
-    while (!pq.empty()) {
-        auto [node_idx, _] = pq.top();
-        pq.pop();
+    while (!stack.empty()) {
+        size_t node_idx = stack.top();
+        stack.pop();
 
         const BvhNode& node = nodes_[node_idx];
-        stats.accel_stats.traversal_count += 1;
-
-        // Get ray-AABB intersection
-        float t_min, t_max;
-        if (!IntersectRayAabb(ray, {node.aabb_min, node.aabb_max}, t_min, t_max) || t_min >= best_t) {
-            continue;
-        }
+        stats.accel_stats.traversal_count++;
 
         if (node.is_leaf()) {
-            // Intersect all triangles in leaf
-            float t_hit = best_t;
-            int tri_hit = -1;
-            float b1_hit = 0, b2_hit = 0;
-
+            float b1, b2, t;
             for (size_t i = 0; i < node.t_count; i++) {
                 int tri_idx = triangle_indices_[node.t_begin + i];
-                float b1, b2;
-                float t = triangles_[tri_idx].IntersectRay(ray, b1, b2, backface_culling);
-                stats.accel_stats.intersection_count += 1;
+                t = triangles_[tri_idx].IntersectRay(ray, b1, b2, backface_culling);
+                stats.accel_stats.intersection_count++;
 
                 if (t > kEpsilon && t < t_hit) {
+                    hit = true;
                     t_hit = t;
                     tri_hit = tri_idx;
                     b1_hit = b1;
                     b2_hit = b2;
                 }
             }
+            continue;
+        }
+        size_t left_child_idx = node.t_begin;
+        size_t right_child_idx = left_child_idx + 1;
+        const BvhNode& left_child = nodes_[left_child_idx];
+        const BvhNode& right_child = nodes_[right_child_idx];
 
-            if (tri_hit != -1) {
-                best_t = t_hit;
-                found_hit = true;
+        float left_t_min, left_t_max, right_t_min, right_t_max;
+        bool left_hit = IntersectRayAabb(ray, {left_child.aabb_min, left_child.aabb_max}, left_t_min, left_t_max);
+        bool right_hit = IntersectRayAabb(ray, {right_child.aabb_min, right_child.aabb_max}, right_t_min, right_t_max);
 
-                // Update ray_hit
-                const Triangle& triangle = triangles_[tri_hit];
-                ray_hit.t = t_hit;
-                ray_hit.triangle_id = tri_hit;
-                ray_hit.material_id = triangle.material_id;
-                ray_hit.pos = ray.At(t_hit);
-                ray_hit.b0 = 1.0f - b1_hit - b2_hit;
-                ray_hit.b1 = b1_hit;
-                ray_hit.b2 = b2_hit;
-                ray_hit.epsilon = RayEpsilon(ray_hit.pos, ray_hit.t);
-                ray_hit.geom_normal = triangle.geom_normal;
-                ray_hit.normal = triangle.geom_normal;
-                if (triangle.has_vertex_normals) {
-                    ray_hit.normal = Normalize(triangle.v0.normal * ray_hit.b0 + triangle.v1.normal * ray_hit.b1 +
-                                               triangle.v2.normal * ray_hit.b2);
-                }
+        if (left_t_min >= t_hit || left_t_max <= kEpsilon) {
+            left_hit = false;
+        }
+        if (right_t_min >= t_hit || right_t_max <= kEpsilon) {
+            right_hit = false;
+        }
+
+        if (left_hit && right_hit) {
+            if (left_t_min < right_t_min) {
+                stack.push(right_child_idx);
+                stack.push(left_child_idx);
+            } else {
+                stack.push(left_child_idx);
+                stack.push(right_child_idx);
             }
-        } else {
-            // Internal node: traverse closer child first
-            size_t left_child_idx = node.t_begin;
-            size_t right_child_idx = left_child_idx + 1;
-            const BvhNode& left_child = nodes_[left_child_idx];
-            const BvhNode& right_child = nodes_[right_child_idx];
-
-            // Get distances to both children
-            float left_t_min, left_t_max, right_t_min, right_t_max;
-            bool left_hit = IntersectRayAabb(ray, {left_child.aabb_min, left_child.aabb_max}, left_t_min, left_t_max);
-            bool right_hit =
-                IntersectRayAabb(ray, {right_child.aabb_min, right_child.aabb_max}, right_t_min, right_t_max);
-
-            // Add to priority queue: closer child processed first
-            if (left_hit && left_t_max > kEpsilon) {
-                pq.emplace(left_child_idx, std::max(0.0f, left_t_min));
-            }
-            if (right_hit && right_t_max > kEpsilon) {
-                pq.emplace(right_child_idx, std::max(0.0f, right_t_min));
-            }
+        } else if (left_hit) {
+            stack.push(left_child_idx);
+        } else if (right_hit) {
+            stack.push(right_child_idx);
         }
     }
 
-    return found_hit;
+    if (!hit) return false;
+
+    const Triangle& triangle = triangles_[tri_hit];
+    ray_hit.t = t_hit;
+    ray_hit.triangle_id = tri_hit;
+    ray_hit.material_id = triangle.material_id;
+    ray_hit.pos = ray.At(t_hit);
+    ray_hit.b0 = 1.0f - b1_hit - b2_hit;
+    ray_hit.b1 = b1_hit;
+    ray_hit.b2 = b2_hit;
+    ray_hit.epsilon = RayEpsilon(ray_hit.pos, ray_hit.t);
+    ray_hit.geom_normal = triangle.geom_normal;
+    ray_hit.normal = triangle.geom_normal;
+    if (triangle.has_vertex_normals) {
+        ray_hit.normal = Normalize(triangle.v0.normal * ray_hit.b0 + triangle.v1.normal * ray_hit.b1 +
+                                   triangle.v2.normal * ray_hit.b2);
+    }
+
+    return true;
 }
 
 bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) const {
@@ -165,13 +155,7 @@ bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) con
         s.pop();
 
         const BvhNode& node = nodes_[node_idx];
-        stats.accel_stats.traversal_count += 1;
-
-        // Test AABB intersection
-        float t_min, t_max;
-        if (!IntersectRayAabb(ray, {node.aabb_min, node.aabb_max}, t_min, t_max)) {
-            continue;
-        }
+        stats.accel_stats.traversal_count++;
 
         if (node.is_leaf()) {
             // Test triangles: return on first hit
@@ -179,17 +163,26 @@ bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) con
                 int tri_idx = triangle_indices_[node.t_begin + i];
                 float b1, b2;
                 float t = triangles_[tri_idx].IntersectRay(ray, b1, b2, backface_culling);
-                stats.accel_stats.intersection_count += 1;
+                stats.accel_stats.intersection_count++;
 
                 if (t > kEpsilon && t < ray.t_max) {
                     return true;  // Any hit found
                 }
             }
-        } else {
-            // Internal node: push both children
-            size_t left_child_idx = node.t_begin;
-            size_t right_child_idx = left_child_idx + 1;
+            continue;
+        }
+
+        size_t left_child_idx = node.t_begin;
+        const BvhNode& left_child = nodes_[left_child_idx];
+        size_t right_child_idx = left_child_idx + 1;
+        const BvhNode& right_child = nodes_[right_child_idx];
+
+        // Test AABB intersection
+        float t_min, t_max;
+        if (IntersectRayAabb(ray, {left_child.aabb_min, left_child.aabb_max}, t_min, t_max) && t_max > kEpsilon) {
             s.emplace(left_child_idx);
+        }
+        if (IntersectRayAabb(ray, {right_child.aabb_min, right_child.aabb_max}, t_min, t_max) && t_max > kEpsilon) {
             s.emplace(right_child_idx);
         }
     }
@@ -278,7 +271,7 @@ void SBvh::Subdivide(const AccelerationStructureConfig& accel_config, size_t nod
 
     // Check for BVH criteria
     bool cb_too_small = cb.size.x < kEpsilon && cb.size.y < kEpsilon && cb.size.z < kEpsilon;
-    if (node.t_count < accel_config.max_triangles_per_BB || depth >= accel_config.max_depth || cb_too_small) {
+    if (node.t_count < accel_config.max_triangles_per_leaf || depth >= accel_config.max_depth || cb_too_small) {
         return;
     }
 

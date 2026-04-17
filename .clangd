@@ -1,13 +1,13 @@
 CompileFlags:
   Add:
-    - "-I/home/kubik/Diplodocus/diplodocus-project/src"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/glfw/include"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/imgui"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/imgui/backends"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/glad/include"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/tinyobjloader"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/json"
-    - "-I/home/kubik/Diplodocus/diplodocus-project/third-party/tomlplusplus"
+    - "-I../src"
+    - "-I../third-party/glfw/include"
+    - "-I../third-party/imgui"
+    - "-I../third-party/imgui/backends"
+    - "-I../third-party/glad/include"
+    - "-I../third-party/tinyobjloader"
+    - "-I../third-party/json"
+    - "-I../third-party/tomlplusplus"
   Remove:
     - "--options-file"
     - "-forward-unknown-to-host-compiler"

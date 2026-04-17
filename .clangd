@@ -1,7 +1,7 @@
 CompileFlags:
   Add:
     - "-I../src"
-    - "-I../third-party/tinyobjloader"
+    - "-I../third-party/rapidobj"
     - "-I../third-party/json"
   Remove:
     - "--options-file"

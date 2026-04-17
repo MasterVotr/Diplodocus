@@ -56,7 +56,7 @@ class GpuScene {
     GpuScene(const GpuScene&) = delete;
     GpuScene& operator=(const GpuScene&) = delete;
 
-    GpuSceneView GetSceneView() const;
+    GpuSceneView GetView() const;
 
    private:
     // Triangles

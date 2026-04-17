@@ -98,7 +98,7 @@ GpuScene::GpuScene(const Scene& scene) {
     pl_color_.Upload(pl_color);
 }
 
-GpuSceneView GpuScene::GetSceneView() const {
+GpuSceneView GpuScene::GetView() const {
     return GpuSceneView{
         // Triangles
         tri_v0_pos_.Data(),

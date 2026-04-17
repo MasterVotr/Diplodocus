@@ -1,1 +1,0 @@
-namespace diplodocus {}  // namespace diplodocus

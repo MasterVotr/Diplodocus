@@ -17,7 +17,7 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 # Avoids static cudart-driven nvlink noise on Linux
 set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
 
-# Keep compile database for tooling
+# Export for Clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Dependencies
@@ -76,23 +76,14 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    GLFW_INCLUDE_NONE
-)
-
 target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall -Wextra -pedantic
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     diplodocus_gpu
-    glfw
-    imgui
-    glad
-    OpenGL::GL
     tinyobjloader
     json
-    tomlplusplus
 )
 
 option(ENABLE_DEBUG "Enable asan and deugging" OFF)

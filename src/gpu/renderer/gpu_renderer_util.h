@@ -26,74 +26,8 @@ DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32
     return U01FromU32(HashU32(key));
 }
 
-DI bool DummyIntersect(const GpuSceneView& scene, const GpuRay& ray, GpuRayHit& ray_hit, bool backface_culling) {
-    bool hit = false;
-    float t_hit = ray.t_max;
-    int tri_hit;
-    float b1_hit, b2_hit;
-
-    const auto& tri_v0_pos = scene.tri_v0_pos;
-    const auto& tri_v1_pos = scene.tri_v1_pos;
-    const auto& tri_v2_pos = scene.tri_v2_pos;
-
-    // Intersect with scene
-    float t, b1, b2;
-    for (int tri = 0; tri < scene.tri_cnt; tri++) {
-        t = IntersectRayTriangle(tri_v0_pos[tri], tri_v1_pos[tri], tri_v2_pos[tri], ray, b1, b2, false);
-        if (t > kEpsilon && t < t_hit) {
-            hit = true;
-            t_hit = t;
-            tri_hit = tri;
-            b1_hit = b1;
-            b2_hit = b2;
-        }
-    }
-
-    // Early return if miss
-    if (!hit) return false;
-
-    // Calculate RayHit info
-    ray_hit.pos = RayAt(ray, t_hit);
-    ray_hit.normal = scene.tri_goem_norm[tri_hit];
-    ray_hit.geom_normal = scene.tri_goem_norm[tri_hit];
-    ray_hit.b0 = 1.0f - b1_hit - b2_hit;
-    ray_hit.b1 = b1_hit;
-    ray_hit.b2 = b2_hit;
-    ray_hit.t = t_hit;
-    ray_hit.triangle_id = tri_hit;
-    ray_hit.material_id = scene.tri_mat_id[tri_hit];
-    ray_hit.epsilon = RayEpsilon(ray_hit.pos, ray_hit.t);
-    if (scene.tri_has_vn[tri_hit]) {
-        ray_hit.normal = Normalize(scene.tri_v0_norm[tri_hit] * ray_hit.b0 + scene.tri_v1_norm[tri_hit] * ray_hit.b1 +
-                                   scene.tri_v2_norm[tri_hit] * ray_hit.b2);
-    }
-
-    return true;
-}
-
-DI bool DummyIntersectAny(const GpuSceneView& scene, const GpuRay& ray, bool backface_culling) {
-    bool hit = false;
-    float t_hit = ray.t_max;
-    int tri_hit;
-    float b1_hit, b2_hit;
-
-    const auto& tri_v0_pos = scene.tri_v0_pos;
-    const auto& tri_v1_pos = scene.tri_v1_pos;
-    const auto& tri_v2_pos = scene.tri_v2_pos;
-
-    // Intersect with scene
-    float t, b1, b2;
-    for (int tri = 0; tri < scene.tri_cnt; tri++) {
-        t = IntersectRayTriangle(tri_v0_pos[tri], tri_v1_pos[tri], tri_v2_pos[tri], ray, b1, b2, false);
-        if (t > kEpsilon && t < t_hit) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-DI bool IsShadowed(const GpuTraceContext& trace_ctx, const GpuRayHit& ray_hit, float3 pl_pos) {
+template <typename Acceleration>
+DI bool IsShadowed(const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit, float3 pl_pos) {
     float3 to_light = pl_pos - ray_hit.pos;
     float dist_to_light = Length(to_light);
 
@@ -104,15 +38,16 @@ DI bool IsShadowed(const GpuTraceContext& trace_ctx, const GpuRayHit& ray_hit, f
     float3 shadow_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, shadow_dir);
     GpuRay shadow_ray{shadow_origin, shadow_dir, dist_to_light * (1.0f - ray_hit.epsilon)};
 
-    return DummyIntersectAny(trace_ctx.scene, shadow_ray, false);
+    return trace_ctx.accel.IntersectAny(trace_ctx.scene, shadow_ray, false);
 }
 
-DI float3 LocalIlluminationPointLights(const GpuTraceContext& trace_ctx, const GpuRayHit& ray_hit) {
+template <typename Acceleration>
+DI float3 LocalIlluminationPointLights(const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
 
     for (int pl = 0; pl < scene.pl_cnt; pl++) {
-        if (IsShadowed(trace_ctx, ray_hit, scene.pl_pos[pl])) continue;
+        if (IsShadowed<Acceleration>(trace_ctx, ray_hit, scene.pl_pos[pl])) continue;
 
         // Phong
         // Compute the light direction, view direction and reflection direction
@@ -132,7 +67,8 @@ DI float3 LocalIlluminationPointLights(const GpuTraceContext& trace_ctx, const G
     return color;
 }
 
-DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixel_x, int pixel_y,
+template <typename Acceleration>
+DI float3 LocalIlluminationAreaLights(const GpuTraceContext<Acceleration>& trace_ctx, int pixel_x, int pixel_y,
                                       const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
@@ -152,7 +88,7 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext& trace_ctx, int pixe
             float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
-            if (IsShadowed(trace_ctx, ray_hit, pl_pos)) continue;
+            if (IsShadowed<Acceleration>(trace_ctx, ray_hit, pl_pos)) continue;
 
             // Light contribution
             float3 to_light = pl_pos - ray_hit.pos;
@@ -213,10 +149,10 @@ DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float 
     return refr_dir;
 }
 
-DI float SchlickFresnel(const GpuTraceContext& trace_ctx, const GpuRay& ray, const GpuRayHit& ray_hit) {
+DI float SchlickFresnel(const GpuRay& ray, const GpuRayHit& ray_hit, float ior) {
     float cos_i = Fmax(0.0f, Dot(-ray.dir, ray_hit.normal));
     float eta_i = 1.0f;
-    float eta_t = trace_ctx.scene.mat_ior[ray_hit.material_id];
+    float eta_t = ior;
     float r0 = (eta_i - eta_t) / (eta_i + eta_t);
     r0 = r0 * r0;
     float fresnel = r0 + (1.0f - r0) * Pow(1.0f - cos_i, 5.0f);

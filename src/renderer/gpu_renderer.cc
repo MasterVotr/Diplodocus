@@ -1,8 +1,12 @@
 #include "renderer/gpu_renderer.h"
 
+#include <cmath>
+
 #include "config/acceleration_structure_config.h"
+#include "framebuffer/framebuffer.h"
 #include "gpu/acceleration/gpu_acceleration_structure.h"
 #include "gpu/acceleration/gpu_bvh_build_api.h"
+#include "gpu/acceleration/gpu_intersection.h"
 #include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/config/gpu_config_bridge.h"
 #include "gpu/config/gpu_render_config.h"
@@ -11,6 +15,7 @@
 #include "gpu/renderer/gpu_trace_context.h"
 #include "gpu/scene/gpu_scene.h"
 #include "renderer/renderer.h"
+#include "stats/stats.h"
 #include "util/logger.h"
 #include "util/timer.h"
 
@@ -18,18 +23,40 @@ namespace diplodocus {
 
 namespace {
 
-template <cuda_kernels::BoundingVolumeType BV, cuda_kernels::MortonType M>
-RenderResult GpuStartRender(cuda_kernels::GpuBuildParams& build_params, cuda_kernels::GpuTraceContext& trace_ctx) {
+template <cuda_kernels::BoundingVolumeType BV>
+RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
+                             const cuda_kernels::GpuBuildParams& gpu_build_params,
+                             const cuda_kernels::GpuRenderConfig& gpu_render_config,
+                             cuda_kernels::GpuFramebufferView gpu_framebuffer, const Vec3& p00, const Vec3& qw,
+                             const Vec3& qh, const Vec3& cam_pos, float cam_far) {
     // Build BVH
-    int tri_count = trace_ctx.scene.tri_cnt;
+    Timer build_t;
+    int tri_count = gpu_scene.tri_cnt;
     int node_count = 2 * tri_count - 1;
     cuda_kernels::GpuBvh<BV> gpu_bvh(node_count, tri_count);
-    cuda_kernels::LaunchBuildBvhKernels<BV>(build_params, gpu_bvh.GetView());
+    cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh.GetView());
+    stats.accel_stats.build_time = build_t.elapsed_ms();
+
+    // Create trace context
+    cuda_kernels::BvhAcceleration<BV> gpu_accel{gpu_bvh.GetView()};
+    cuda_kernels::GpuTraceContext<cuda_kernels::BvhAcceleration<BV>> gpu_trace_ctx{
+        gpu_render_config,
+        gpu_scene,
+        gpu_accel,
+        gpu_framebuffer,
+        {p00.x, p00.y, p00.z},
+        {qw.x, qw.y, qw.z},
+        {qh.x, qh.y, qh.z},
+        {cam_pos.x, cam_pos.y, cam_pos.z},
+        cam_far,
+    };
 
     // Render using BVH
-    // TODO
+    Timer rt_time;
+    cuda_kernels::LaunchPathtracingKernel<cuda_kernels::BvhAcceleration<BV>>(gpu_trace_ctx);
+    stats.rt_stats.raytracing_time = rt_time.elapsed_s();
 
-    return RenderResult::kCanceled;
+    return RenderResult::kDone;
 }
 
 }  // namespace
@@ -37,10 +64,7 @@ RenderResult GpuStartRender(cuda_kernels::GpuBuildParams& build_params, cuda_ker
 RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
                                       const AccelerationStructureConfig& acceleration_config, const Scene& scene,
                                       Framebuffer& framebuffer, Stats& stats) {
-    // cuda_kernels::HelloCunda();
-
     Logger::info("GPU Renderer: Rendering...");
-    Timer rt_time;
 
     // Setup ray calculation variables
     const int w = render_config.width;
@@ -49,6 +73,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
     const Vec3& cam_up = scene.GetCamera().up;
     const float cam_fov = scene.GetCamera().fov;
     const Vec3& cam_pos = scene.GetCamera().pos;
+    const float cam_far = scene.GetCamera().far;
 
     const Vec3 cam_right = Normalize(Cross(cam_dir, cam_up));
     const float gw = 2.0 * std::tan(cam_fov / 2.0f);
@@ -76,53 +101,55 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
         gpu_scene.GetView(),
     };
 
-    // Create trace context
-    cuda_kernels::GpuTraceContext gpu_trace_ctx{
-        gpu_render_config,  gpu_scene.GetView(), gpu_framebuffer.GetFramebufferView(), {p00.x, p00.y, p00.z},
-        {qw.x, qw.y, qw.z}, {qh.x, qh.y, qh.z},  {cam_pos.x, cam_pos.y, cam_pos.z},    scene.GetCamera().far,
-    };
-
     // Launch Build and Render
     RenderResult render_result{RenderResult::kError};
     switch (acceleration_config.acceleration_structure_type) {
-        case AccelerationStructureType::kPloc: {
-            render_result =
-                GpuStartRender<cuda_kernels::BoundingVolumeType::kAabb, cuda_kernels::MortonType::kMorton30>(
-                    gpu_build_params, gpu_trace_ctx);
-            break;
-        }
+        case AccelerationStructureType::kPloc:
         case AccelerationStructureType::kPlocEmc: {
-            render_result = GpuStartRender<cuda_kernels::BoundingVolumeType::kAabb, cuda_kernels::MortonType::kEmc60>(
-                gpu_build_params, gpu_trace_ctx);
+            render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kAabb>(
+                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetFramebufferView(),
+                p00, qw, qh, cam_pos, cam_far);
             break;
         }
-        case AccelerationStructureType::kPlocSobb: {
-            render_result =
-                GpuStartRender<cuda_kernels::BoundingVolumeType::kSobb, cuda_kernels::MortonType::kMorton30>(
-                    gpu_build_params, gpu_trace_ctx);
-            break;
-        }
+        case AccelerationStructureType::kPlocSobb:
         case AccelerationStructureType::kPlocEmcSobb: {
-            render_result = GpuStartRender<cuda_kernels::BoundingVolumeType::kSobb, cuda_kernels::MortonType::kEmc60>(
-                gpu_build_params, gpu_trace_ctx);
+            render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kSobb>(
+                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetFramebufferView(),
+                p00, qw, qh, cam_pos, cam_far);
             break;
         }
         case AccelerationStructureType::kDummy: {
+            // Create trace context
+            cuda_kernels::NoAcceleration gpu_noaccel;
+            cuda_kernels::GpuTraceContext<cuda_kernels::NoAcceleration> gpu_trace_ctx{
+                gpu_render_config,
+                gpu_scene.GetView(),
+                gpu_noaccel,
+                gpu_framebuffer.GetFramebufferView(),
+                {p00.x, p00.y, p00.z},
+                {qw.x, qw.y, qw.z},
+                {qh.x, qh.y, qh.z},
+                {cam_pos.x, cam_pos.y, cam_pos.z},
+                cam_far,
+            };
+
+            // Render
+            Timer rt_time;
             // cuda_kernels::LaunchRaytracingStackKernel(gpu_trace_ctx);
             cuda_kernels::LaunchPathtracingKernel(gpu_trace_ctx);
+            stats.rt_stats.raytracing_time = rt_time.elapsed_s();
             render_result = RenderResult::kDone;
+
             break;
         }
         default: {
             Logger::error("GpuRenderer: Chosen acceleration structure type is not available on the GPU");
-            return RenderResult::kError;
+            render_result = RenderResult::kError;
         }
     }
 
-    // Download framebuffer from device to host
+    // Download framebuffer
     gpu_framebuffer.Download(framebuffer);
-
-    stats.rt_stats.raytracing_time = rt_time.elapsed_s();
 
     return render_result;
 }

@@ -3,21 +3,13 @@
 #include <vector_types.h>
 
 #include <cstdint>
-#include <variant>
 
+#include "gpu/acceleration/gpu_aabb.h"
+#include "gpu/acceleration/gpu_sobb.h"
 #include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/cuda_buffer.h"
 
 namespace diplodocus::cuda_kernels {
-
-struct GpuAabb {
-    float3 bb_min;
-    float3 bb_max;
-};
-
-struct GpuSobb {
-    // TODO
-};
 
 template <BoundingVolumeType BV>
 struct GpuBvhNode {};

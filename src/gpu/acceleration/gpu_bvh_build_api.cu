@@ -162,10 +162,8 @@ inline void UpdateCompactionCount(const CudaBuffer<int32_t>& offsets, const Cuda
 template <>
 void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>(
     const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kAabb> bvh) {
-    printf("Building PLOC...\n");
-
     if (bvh.tri_count == 0) {
-        printf("No triangles to build.\n");
+        printf("BvhBuild: No triangles to build.\n");
         return;
     }
 
@@ -256,7 +254,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
     int current_n = bvh.tri_count;
     int base_node_offset = current_n;
     while (current_n > 1) {
-        printf("BvhBuild::Ploc: while loop round start: current_n = %d\n", current_n);
+        // printf("BvhBuild::Ploc: while loop round start: current_n = %d\n", current_n);
         block_count = (current_n + kBvhBuildThreadsPerBlock - 1) / kBvhBuildThreadsPerBlock;
 
         // Nearest neighbor
@@ -296,14 +294,12 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
         cuda::std::swap(node_idxs, node_idxs_next);
 
         current_n = valid_cnt;
-        printf("BvhBuild::Ploc: while loop round results: valid_cnt = %d, merge_cnt = %d\n", valid_cnt, leader_cnt);
+        // printf("BvhBuild::Ploc: while loop round results: valid_cnt = %d, merge_cnt = %d\n", valid_cnt, leader_cnt);
     }
 
     cudaMemcpy(bvh.root, node_idxs.Data() + 0, sizeof(*bvh.root), cudaMemcpyDeviceToDevice);
 
     // TODO: Collapse leaves
-
-    printf("Building in development!\n");
 }
 
 template <>

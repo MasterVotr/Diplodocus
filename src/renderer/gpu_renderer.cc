@@ -31,6 +31,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
                              cuda_kernels::GpuFramebufferView gpu_framebuffer, const Vec3& p00, const Vec3& qw,
                              const Vec3& qh, const Vec3& cam_pos, float cam_far) {
     // Build BVH
+    Logger::info("GPU Renderer: Building BVH...");
     Timer build_t;
     int tri_count = gpu_scene.tri_cnt;
     int node_count = 2 * tri_count - 1;
@@ -58,6 +59,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     };
 
     // Render using BVH
+    Logger::info("GPU Renderer: Ray tracing...");
     Timer rt_time;
     cuda_kernels::LaunchPathtracingKernel<cuda_kernels::BvhAcceleration<BV>>(gpu_trace_ctx);
     stats.rt_stats.raytracing_time = rt_time.elapsed_s();
@@ -70,7 +72,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
 RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
                                       const AccelerationStructureConfig& acceleration_config, const Scene& scene,
                                       Framebuffer& framebuffer, Stats& stats) {
-    Logger::info("GPU Renderer: Rendering...");
+    Logger::debug("GPU Renderer::StartRender()...");
 
     // Setup ray calculation variables
     const int w = render_config.width;

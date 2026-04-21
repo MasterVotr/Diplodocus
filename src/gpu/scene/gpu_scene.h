@@ -21,7 +21,7 @@ struct GpuSceneView {
     const float3* tri_v0_norm;
     const float3* tri_v1_norm;
     const float3* tri_v2_norm;
-    const float3* tri_goem_norm;
+    const float3* tri_geom_norm;
     const uint8_t* tri_has_vn;
     const int* tri_mat_id;
     const int tri_cnt;
@@ -66,7 +66,7 @@ class GpuScene {
     CudaBuffer<float3> tri_v0_norm_;
     CudaBuffer<float3> tri_v1_norm_;
     CudaBuffer<float3> tri_v2_norm_;
-    CudaBuffer<float3> tri_goem_norm_;
+    CudaBuffer<float3> tri_geom_norm_;
     CudaBuffer<uint8_t> tri_has_vn_;
     CudaBuffer<int> tri_mat_id_;
 

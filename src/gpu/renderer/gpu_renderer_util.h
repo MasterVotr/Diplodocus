@@ -94,7 +94,7 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext<Acceleration>& trace
             float3 to_light = pl_pos - ray_hit.pos;
             float dist_to_light = Length(to_light);
             float3 d_l = to_light / dist_to_light;
-            float w = (scene.al_surface_area[al] * Fmax(0.0f, Dot(scene.tri_goem_norm[al_t], (-d_l))) *
+            float w = (scene.al_surface_area[al] * Fmax(0.0f, Dot(scene.tri_geom_norm[al_t], (-d_l))) *
                        Fmax(0.0f, Dot(ray_hit.normal, d_l))) /
                       ((al_sample_cnt * dist_to_light * dist_to_light) + kEpsilon);
             float3 pl_color = al_color * w;

@@ -34,7 +34,7 @@ GpuScene::GpuScene(const Scene& scene) {
     tri_v0_norm_.Upload(t_v0_norm);
     tri_v1_norm_.Upload(t_v1_norm);
     tri_v2_norm_.Upload(t_v2_norm);
-    tri_goem_norm_.Upload(t_geom_norm);
+    tri_geom_norm_.Upload(t_geom_norm);
     tri_has_vn_.Upload(t_has_vn);
     tri_mat_id_.Upload(t_mat_id);
 
@@ -107,7 +107,7 @@ GpuSceneView GpuScene::GetView() const {
         tri_v0_norm_.Data(),
         tri_v1_norm_.Data(),
         tri_v2_norm_.Data(),
-        tri_goem_norm_.Data(),
+        tri_geom_norm_.Data(),
         tri_has_vn_.Data(),
         tri_mat_id_.Data(),
         static_cast<int>(tri_v0_pos_.Size()),

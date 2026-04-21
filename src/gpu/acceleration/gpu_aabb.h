@@ -2,11 +2,15 @@
 
 #include <vector_types.h>
 
+#include "gpu/cuda_math.h"
+
 namespace diplodocus::cuda_kernels {
 
 struct GpuAabb {
-    float3 bb_min;
-    float3 bb_max;
+    float3 min;
+    float3 max;
 };
+
+static_assert(sizeof(GpuAabb) == 24, "GpuAabb: unexpected sizeof()");
 
 }  // namespace diplodocus::cuda_kernels

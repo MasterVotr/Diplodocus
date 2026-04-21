@@ -36,8 +36,8 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
         }
 
         // Local illuminations contribution
-        // float3 pl_contrib = LocalIlluminationPointLights<Acceleration>(trace_ctx, ray_hit);
-        // bounce_state.radiance = bounce_state.radiance + bounce_state.throughput * pl_contrib;
+        float3 pl_contrib = LocalIlluminationPointLights<Acceleration>(trace_ctx, ray_hit);
+        radiance = radiance + throughput * pl_contrib;
         float3 al_contrib =
             LocalIlluminationAreaLights<Acceleration>(trace_ctx, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_hit);
         radiance = radiance + throughput * al_contrib;

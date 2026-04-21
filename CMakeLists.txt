@@ -61,11 +61,27 @@ target_include_directories(diplodocus_gpu
     src
 )
 
+function(apply_build_type_flags target_name)
+    target_compile_options(${target_name} PRIVATE
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:-O0>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:-g>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:-fno-omit-frame-pointer>
+        $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-O3>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-O0>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-g>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-O3>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-lineinfo>
+    )
+endfunction()
+
 target_compile_options(diplodocus_gpu PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra -pedantic>
     $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wall,-Wextra,-Wpedantic>
     $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-gnu-line-marker>
 )
+
+apply_build_type_flags(diplodocus_gpu)
 
 # -----------------------------
 # Host executable
@@ -84,6 +100,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall -Wextra -pedantic
 )
 
+apply_build_type_flags(${PROJECT_NAME})
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     diplodocus_gpu
     glfw
@@ -94,10 +112,3 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     json
     tomlplusplus
 )
-
-option(ENABLE_DEBUG "Enable asan and deugging" OFF)
-
-if(ENABLE_DEBUG)
-    target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -g)
-    target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -g)
-endif()

@@ -1,8 +1,17 @@
 #!/bin/bash
 
-cmake -S . -B build \
-  -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang++ \
-  -DCMAKE_CXX_FLAGS="-stdlib=libc++"
-cmake --build build --parallel
+set -euo pipefail
 
+preset="${1:-debug}"
+
+case "$preset" in
+  debug|relwithdebinfo|release)
+    ;;
+  *)
+    echo "Usage: $0 [debug|release]" >&2
+    exit 1
+    ;;
+esac
+
+cmake --preset "$preset"
+cmake --build --preset "$preset" --parallel

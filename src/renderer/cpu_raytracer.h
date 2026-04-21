@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 
 #include "acceleration/acceleration_structure.h"
 #include "config/acceleration_structure_config.h"

@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 
 #include "gpu/cuda_compat.h"
 
@@ -12,7 +13,7 @@ namespace diplodocus::cuda_kernels {
 inline void CheckCudaImpl(cudaError_t err, const char* expr, const char* file, int line) {
     if (err != cudaSuccess) {
         fprintf(stderr, "CUDA error: %s at %s:%d (%s)\n", cudaGetErrorString(err), file, line, expr);
-        std::abort();
+        exit(EXIT_FAILURE);
     }
 }
 #define CUDA_CHECK(expr) CheckCudaImpl((expr), #expr, __FILE__, __LINE__)

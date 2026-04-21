@@ -123,7 +123,7 @@ Vec3 CpuRaytracer::TraceRay(const TraceContext& trace_ctx, const PixelContext& p
     // LocalIllumination
     Vec3 ray_color = color::kBlack;
     ray_color += LocalIlluminationAreaLights(trace_ctx, pixel_ctx, ray_hit);
-    // ray_color += LocalIlluminationPointLights(trace_ctx, ray_hit);
+    ray_color += LocalIlluminationPointLights(trace_ctx, ray_hit);
 
     if (depth < trace_ctx.render_config.max_depth) {
         // Reflection
@@ -209,11 +209,7 @@ Vec3 CpuRaytracer::LocalIlluminationPointLights(const TraceContext& trace_ctx, c
         // If shadowed discard
         if (IsShadowed(trace_ctx, ray_hit, point_light)) continue;
 
-        // Light attenuation
-        float d = Length(point_light.pos - ray_hit.pos);
-        Vec3 I_l = (point_light.color * point_light.power) / ((d * d) + kEpsilon);
-
-        color += Phong(trace_ctx, ray_hit, {point_light.pos, I_l, point_light.power});
+        color += Phong(trace_ctx, ray_hit, point_light);
     }
 
     return color;

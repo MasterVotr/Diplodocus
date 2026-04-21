@@ -28,7 +28,7 @@ class GpuFramebuffer {
 
     int GetWidth() const { return width_; }
     int GetHeight() const { return height_; }
-    GpuFramebufferView GetFramebufferView() { return {data_.Data(), width_, height_}; }
+    GpuFramebufferView GetView() { return {data_.Data(), width_, height_}; }
 
    private:
     CudaBuffer<float3> data_;

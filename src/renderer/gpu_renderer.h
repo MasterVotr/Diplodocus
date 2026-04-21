@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "renderer/renderer.h"
 
 namespace diplodocus {

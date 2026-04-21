@@ -1,6 +1,7 @@
 #include "renderer/gpu_renderer.h"
 
 #include <cmath>
+#include <vector>
 
 #include "config/acceleration_structure_config.h"
 #include "framebuffer/framebuffer.h"
@@ -36,6 +37,11 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     cuda_kernels::GpuBvh<BV> gpu_bvh(node_count, tri_count);
     cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh.GetView());
     stats.accel_stats.build_time = build_t.elapsed_ms();
+
+    // Download bvh to host for debuging
+    std::vector<cuda_kernels::GpuBvhNode<BV>> h_gpu_bvh_nodes;
+    std::vector<int32_t> h_gpu_bvh_tri_idxs;
+    gpu_bvh.Download(h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs);
 
     // Create trace context
     cuda_kernels::BvhAcceleration<BV> gpu_accel{gpu_bvh.GetView()};
@@ -86,7 +92,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
     cuda_kernels::GpuFramebuffer gpu_framebuffer;
     gpu_framebuffer.Resize(render_config.width, render_config.height);
     cuda_kernels::LaunchClearFramebufferKernel(
-        gpu_framebuffer.GetFramebufferView(),
+        gpu_framebuffer.GetView(),
         {render_config.background_color.x, render_config.background_color.y, render_config.background_color.z});
 
     // Transfer scene, framebuffer to GPU  TODO: transfer stats
@@ -107,15 +113,15 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
         case AccelerationStructureType::kPloc:
         case AccelerationStructureType::kPlocEmc: {
             render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kAabb>(
-                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetFramebufferView(),
-                p00, qw, qh, cam_pos, cam_far);
+                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetView(), p00, qw, qh,
+                cam_pos, cam_far);
             break;
         }
         case AccelerationStructureType::kPlocSobb:
         case AccelerationStructureType::kPlocEmcSobb: {
             render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kSobb>(
-                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetFramebufferView(),
-                p00, qw, qh, cam_pos, cam_far);
+                stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetView(), p00, qw, qh,
+                cam_pos, cam_far);
             break;
         }
         case AccelerationStructureType::kDummy: {
@@ -125,7 +131,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
                 gpu_render_config,
                 gpu_scene.GetView(),
                 gpu_noaccel,
-                gpu_framebuffer.GetFramebufferView(),
+                gpu_framebuffer.GetView(),
                 {p00.x, p00.y, p00.z},
                 {qw.x, qw.y, qw.z},
                 {qh.x, qh.y, qh.z},

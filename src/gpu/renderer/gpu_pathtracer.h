@@ -72,12 +72,18 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
             throughput = throughput * ks / Fmax(kEpsilon, prob_refl);
             ray_ctx.rt_stats.secondary_ray_count++;
         } else {  // Refract
-            float3 refr_dir =
-                Refract(ray_ctx.ray, ray_hit, scene.mat_ior[ray_hit.material_id], scene.mat_r_ior[ray_hit.material_id]);
+            bool tir = false;
+            float3 refr_dir = Refract(ray_ctx.ray, ray_hit, scene.mat_ior[ray_hit.material_id],
+                                      scene.mat_r_ior[ray_hit.material_id], tir);
             float3 refr_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refr_dir);
             ray_ctx.ray = {refr_origin, refr_dir, ray_ctx.ray.t_max};
-            float prob_refr = 1.0f - prob_refl;
-            throughput = throughput * kt / Fmax(kEpsilon, prob_refr);
+            if (tir) {
+                // If TIR happens -> force full reflection
+                throughput = throughput * kt;
+            } else {
+                float prob_refr = 1.0f - prob_refl;
+                throughput = throughput * kt / Fmax(kEpsilon, prob_refr);
+            }
             ray_ctx.rt_stats.secondary_ray_count++;
         }
 

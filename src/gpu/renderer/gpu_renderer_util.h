@@ -120,7 +120,7 @@ DI float3 Reflect(const GpuRay& ray, const GpuRayHit& ray_hit) {
     return refl_dir;
 }
 
-DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float r_ior) {
+DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float r_ior, bool& tir) {
     float3 v = -ray.dir;
     float3 n = ray_hit.normal;
     float eta = ior;
@@ -138,7 +138,11 @@ DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float 
     float sin2_t = sin2_i / (eta * eta);
 
     // TIR
-    if (sin2_t >= 1.0f) return Reflect(ray, ray_hit);
+    if (sin2_t >= 1.0f) {
+        tir = true;
+        return Reflect(ray, ray_hit);
+    }
+    tir = false;
 
     float cos_t = Sqrt(1.0f - sin2_t);
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/framebuffer/gpu_framebuffer.h"
 #include "gpu/renderer/gpu_trace_context.h"
+#include "stats/raytracing_stats.h"
 
 namespace diplodocus::cuda_kernels {
 
@@ -12,6 +12,6 @@ void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 
 // void LaunchPathtracingKernel(const GpuTraceContext& trace_ctx);
 
 template <typename Acceleration>
-void LaunchPathtracingKernel(const GpuTraceContext<Acceleration>& trace_ctx);
+void LaunchPathtracingKernel(const GpuTraceContext<Acceleration>& trace_ctx, RaytracingStats& rt_stats);
 
 }  // namespace diplodocus::cuda_kernels

@@ -184,6 +184,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
 
     // Scene bbox using cub::reduce
     CudaValue<GpuAabb> scene_aabb;
+    scene_aabb.Allocate();
     void* d_tmp_storage = nullptr;
     size_t d_tmp_storage_bytes = 0;
     GpuAabb empty_aabb{Splat(kInfinity), Splat(-kInfinity)};

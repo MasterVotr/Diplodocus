@@ -117,7 +117,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     // Render using BVH
     Logger::info("GPU Renderer: Ray tracing...");
     Timer rt_time;
-    cuda_kernels::LaunchPathtracingKernel<cuda_kernels::BvhAcceleration<BV>>(gpu_trace_ctx);
+    cuda_kernels::LaunchPathtracingKernel<cuda_kernels::BvhAcceleration<BV>>(gpu_trace_ctx, stats.rt_stats);
     stats.rt_stats.raytracing_time = rt_time.elapsed_s();
 
     return RenderResult::kDone;
@@ -202,7 +202,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
             // Render
             Timer rt_time;
             // cuda_kernels::LaunchRaytracingStackKernel(gpu_trace_ctx);
-            cuda_kernels::LaunchPathtracingKernel(gpu_trace_ctx);
+            cuda_kernels::LaunchPathtracingKernel(gpu_trace_ctx, stats.rt_stats);
             stats.rt_stats.raytracing_time = rt_time.elapsed_s();
             render_result = RenderResult::kDone;
 

@@ -10,6 +10,7 @@
 #include "gpu/scene/gpu_ray_ops.h"
 #include "gpu/scene/gpu_scene.h"
 #include "gpu/scene/gpu_triangle_ops.h"
+#include "stats/raytracing_stats.h"
 
 namespace diplodocus::cuda_kernels {
 
@@ -27,7 +28,9 @@ DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32
 }
 
 template <typename Acceleration>
-DI bool IsShadowed(const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit, float3 pl_pos) {
+DI bool IsShadowed(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit,
+                   float3 pl_pos) {
+    rt_stats.shadow_ray_count++;
     float3 to_light = pl_pos - ray_hit.pos;
     float dist_to_light = Length(to_light);
 
@@ -38,16 +41,17 @@ DI bool IsShadowed(const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayH
     float3 shadow_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, shadow_dir);
     GpuRay shadow_ray{shadow_origin, shadow_dir, dist_to_light * (1.0f - ray_hit.epsilon)};
 
-    return trace_ctx.accel.IntersectAny(trace_ctx.scene, shadow_ray, false);
+    return trace_ctx.accel.IntersectAny(rt_stats, trace_ctx.scene, shadow_ray, false);
 }
 
 template <typename Acceleration>
-DI float3 LocalIlluminationPointLights(const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit) {
+DI float3 LocalIlluminationPointLights(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx,
+                                       const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
 
     for (int pl = 0; pl < scene.pl_cnt; pl++) {
-        if (IsShadowed<Acceleration>(trace_ctx, ray_hit, scene.pl_pos[pl])) continue;
+        if (IsShadowed<Acceleration>(rt_stats, trace_ctx, ray_hit, scene.pl_pos[pl])) continue;
 
         // Phong
         // Compute the light direction, view direction and reflection direction
@@ -68,8 +72,8 @@ DI float3 LocalIlluminationPointLights(const GpuTraceContext<Acceleration>& trac
 }
 
 template <typename Acceleration>
-DI float3 LocalIlluminationAreaLights(const GpuTraceContext<Acceleration>& trace_ctx, int pixel_x, int pixel_y,
-                                      const GpuRayHit& ray_hit) {
+DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx,
+                                      int pixel_x, int pixel_y, const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
     int seed = trace_ctx.render_config.seed;
@@ -88,7 +92,7 @@ DI float3 LocalIlluminationAreaLights(const GpuTraceContext<Acceleration>& trace
             float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
-            if (IsShadowed<Acceleration>(trace_ctx, ray_hit, pl_pos)) continue;
+            if (IsShadowed<Acceleration>(rt_stats, trace_ctx, ray_hit, pl_pos)) continue;
 
             // Light contribution
             float3 to_light = pl_pos - ray_hit.pos;

@@ -11,11 +11,14 @@
 #include "gpu/scene/gpu_ray_ops.h"
 #include "gpu/scene/gpu_scene.h"
 #include "gpu/scene/gpu_triangle_ops.h"
+#include "stats/raytracing_stats.h"
 
 namespace diplodocus::cuda_kernels {
 
-D bool NoAcceleration::Intersect(const GpuSceneView& scene, const GpuRay& ray, GpuRayHit& ray_hit,
-                                 bool backface_culling) const {
+D bool NoAcceleration::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene, const GpuRay& ray,
+                                 GpuRayHit& ray_hit, bool backface_culling) const {
+    rt_stats.query_count++;
+    rt_stats.intersection_count += scene.tri_cnt;
     bool hit = false;
     float t_hit = ray.t_max;
     int tri_hit;
@@ -60,7 +63,9 @@ D bool NoAcceleration::Intersect(const GpuSceneView& scene, const GpuRay& ray, G
     return true;
 }
 
-D bool NoAcceleration::IntersectAny(const GpuSceneView& scene, const GpuRay& ray, bool backface_culling) const {
+D bool NoAcceleration::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene, const GpuRay& ray,
+                                    bool backface_culling) const {
+    rt_stats.query_count++;
     const auto& tri_v0_pos = scene.tri_v0_pos;
     const auto& tri_v1_pos = scene.tri_v1_pos;
     const auto& tri_v2_pos = scene.tri_v2_pos;
@@ -68,6 +73,7 @@ D bool NoAcceleration::IntersectAny(const GpuSceneView& scene, const GpuRay& ray
     // Intersect with scene
     float t, b1, b2;
     for (int tri = 0; tri < scene.tri_cnt; tri++) {
+        rt_stats.intersection_count++;
         t = IntersectRayTriangle(tri_v0_pos[tri], tri_v1_pos[tri], tri_v2_pos[tri], ray, b1, b2, backface_culling);
         if (t > kEpsilon && t < ray.t_max) {
             return true;
@@ -78,8 +84,10 @@ D bool NoAcceleration::IntersectAny(const GpuSceneView& scene, const GpuRay& ray
 }
 
 template <>
-D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(const GpuSceneView& scene, const GpuRay& ray,
-                                                             GpuRayHit& ray_hit, bool backface_culling) const {
+D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene,
+                                                             const GpuRay& ray, GpuRayHit& ray_hit,
+                                                             bool backface_culling) const {
+    rt_stats.query_count++;
     bool hit = false;
     float t_hit = ray.t_max;
     int tri_hit = -1;
@@ -95,6 +103,7 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(const GpuSceneView&
 
         // Leaf node
         if (node.is_leaf) {
+            rt_stats.intersection_count++;
             int32_t tri_idx = accel.tri_idxs[node.left];
             float b1, b2;
             float t = IntersectRayTriangle(scene.tri_v0_pos[tri_idx], scene.tri_v1_pos[tri_idx],
@@ -118,6 +127,7 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(const GpuSceneView&
         float left_t_min, left_t_max, right_t_min, right_t_max;
         bool left_hit = IntersectRayAabb(ray, left_child.bounds, left_t_min, left_t_max);
         bool right_hit = IntersectRayAabb(ray, right_child.bounds, right_t_min, right_t_max);
+        rt_stats.traversal_count += 2;
 
         if (left_t_min > t_hit || left_t_max <= kEpsilon) {
             left_hit = false;
@@ -164,8 +174,9 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(const GpuSceneView&
 }
 
 template <>
-D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(const GpuSceneView& scene, const GpuRay& ray,
-                                                                bool backface_culling) const {
+D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene,
+                                                                const GpuRay& ray, bool backface_culling) const {
+    rt_stats.query_count++;
     int32_t stack[64];
     int32_t stack_top = 0;
     stack[stack_top] = *accel.root;
@@ -175,6 +186,7 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(const GpuSceneVi
 
         // Leaf node
         if (node.is_leaf) {
+            rt_stats.intersection_count++;
             int32_t tri_idx = accel.tri_idxs[node.left];
             float b1, b2;
             float t = IntersectRayTriangle(scene.tri_v0_pos[tri_idx], scene.tri_v1_pos[tri_idx],
@@ -193,9 +205,11 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(const GpuSceneVi
 
         float t_min, t_max;
         if (IntersectRayAabb(ray, left_child.bounds, t_min, t_max) && t_max > kEpsilon) {
+            rt_stats.traversal_count++;
             stack[++stack_top] = left_child_idx;
         }
         if (IntersectRayAabb(ray, right_child.bounds, t_min, t_max) && t_max > kEpsilon) {
+            rt_stats.traversal_count++;
             stack[++stack_top] = right_child_idx;
         }
     }
@@ -204,15 +218,18 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(const GpuSceneVi
 }
 
 template <>
-D bool BvhAcceleration<BoundingVolumeType::kSobb>::Intersect(const GpuSceneView& scene, const GpuRay& ray,
-                                                             GpuRayHit& ray_hit, bool backface_culling) const {
+D bool BvhAcceleration<BoundingVolumeType::kSobb>::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene,
+                                                             const GpuRay& ray, GpuRayHit& ray_hit,
+                                                             bool backface_culling) const {
+    rt_stats.query_count++;
     printf("BvhAcceleration::kSobb: Intersect() not implemented yet!\n");
     return false;
 }
 
 template <>
-D bool BvhAcceleration<BoundingVolumeType::kSobb>::IntersectAny(const GpuSceneView& scene, const GpuRay& ray,
-                                                                bool backface_culling) const {
+D bool BvhAcceleration<BoundingVolumeType::kSobb>::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene,
+                                                                const GpuRay& ray, bool backface_culling) const {
+    rt_stats.query_count++;
     printf("BvhAcceleration::kSobb: IntersectAny() not implemented yet!\n");
     return false;
 }

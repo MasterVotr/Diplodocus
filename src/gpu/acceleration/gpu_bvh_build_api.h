@@ -3,12 +3,14 @@
 #include "gpu/acceleration/gpu_acceleration_structure.h"
 #include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/scene/gpu_scene.h"
+#include "stats/construction_stats.h"
 
 namespace diplodocus::cuda_kernels {
 
 struct GpuBuildParams {
     GpuAccelerationStructureConfig accel_config;
     GpuSceneView scene;
+    ConstructionStats& construction_stats;
 };
 
 template <BoundingVolumeType BV, MortonType M>

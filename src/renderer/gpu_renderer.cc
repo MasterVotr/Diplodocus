@@ -1,10 +1,13 @@
 #include "renderer/gpu_renderer.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "config/acceleration_structure_config.h"
 #include "framebuffer/framebuffer.h"
+#include "gpu/acceleration/gpu_aabb_ops.h"
 #include "gpu/acceleration/gpu_acceleration_structure.h"
 #include "gpu/acceleration/gpu_bvh_build_api.h"
 #include "gpu/acceleration/gpu_intersection.h"
@@ -16,6 +19,7 @@
 #include "gpu/renderer/gpu_trace_context.h"
 #include "gpu/scene/gpu_scene.h"
 #include "renderer/renderer.h"
+#include "stats/construction_stats.h"
 #include "stats/stats.h"
 #include "util/logger.h"
 #include "util/timer.h"
@@ -23,6 +27,54 @@
 namespace diplodocus {
 
 namespace {
+
+void BvhStatsCalculator(Stats& stats,
+                        const std::vector<cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>>& nodes,
+                        const std::vector<int32_t>& tri_idxs, int32_t root) {
+    // Compute node counts
+    int32_t stack[64];
+    int32_t stack_top = 0;
+    stack[stack_top] = root;
+
+    while (stack_top != -1) {
+        const cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>& node = nodes[stack[stack_top--]];
+        stats.construction_stats.node_count++;
+
+        // Leaf node
+        if (node.is_leaf) {
+            stats.construction_stats.leaf_node_count++;
+            continue;
+        }
+
+        // Internal node
+        stats.construction_stats.inner_node_count++;
+        int32_t left_child_idx = node.left;
+        int32_t right_child_idx = node.right;
+
+        stack[++stack_top] = left_child_idx;
+        stack[++stack_top] = right_child_idx;
+    }
+
+    // Compute memory consumption
+    stats.construction_stats.memory_consumption =
+        nodes.size() * sizeof(cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>) +
+        tri_idxs.size() * sizeof(int32_t) + sizeof(root);
+
+    // Compute cost
+    float internal_nodes_sa{0.0f};
+    float leaf_nodes_sa{0.0f};
+    std::for_each(nodes.begin(), nodes.end(), [&](const auto& node) {
+        float sa = cuda_kernels::CalculateAabbSurfaceArea(node.bounds);
+        if (node.is_leaf)
+            leaf_nodes_sa += sa * 1;  // 1 triangle per leaf
+        else
+            internal_nodes_sa += sa;
+    });
+
+    float root_sa = cuda_kernels::CalculateAabbSurfaceArea(nodes[root].bounds);
+    stats.construction_stats.bvh_cost =
+        (kTraversalCost * internal_nodes_sa + kIntersectionCost * leaf_nodes_sa) / root_sa;
+}
 
 template <cuda_kernels::BoundingVolumeType BV>
 RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
@@ -37,12 +89,16 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     int node_count = 2 * tri_count - 1;
     cuda_kernels::GpuBvh<BV> gpu_bvh(node_count, tri_count);
     cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh.GetView());
-    stats.accel_stats.build_time = build_t.elapsed_ms();
+    stats.construction_stats.build_time = build_t.elapsed_ms();
 
     // Download bvh to host for debuging
     std::vector<cuda_kernels::GpuBvhNode<BV>> h_gpu_bvh_nodes;
     std::vector<int32_t> h_gpu_bvh_tri_idxs;
-    gpu_bvh.Download(h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs);
+    int32_t h_gpu_bvh_root;
+    gpu_bvh.Download(h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs, h_gpu_bvh_root);
+    if constexpr (BV == cuda_kernels::BoundingVolumeType::kAabb) {
+        BvhStatsCalculator(stats, h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs, h_gpu_bvh_root);
+    }
 
     // Create trace context
     cuda_kernels::BvhAcceleration<BV> gpu_accel{gpu_bvh.GetView()};
@@ -72,7 +128,8 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
 RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
                                       const AccelerationStructureConfig& acceleration_config, const Scene& scene,
                                       Framebuffer& framebuffer, Stats& stats) {
-    Logger::debug("GPU Renderer::StartRender()...");
+    Logger::debug("GPU Renderer: Rendering...");
+    Timer frame_t;
 
     // Setup ray calculation variables
     const int w = render_config.width;
@@ -97,7 +154,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
         gpu_framebuffer.GetView(),
         {render_config.background_color.x, render_config.background_color.y, render_config.background_color.z});
 
-    // Transfer scene, framebuffer to GPU  TODO: transfer stats
+    // Transfer scene, framebuffer to GPU
     cuda_kernels::GpuScene gpu_scene(scene);
     cuda_kernels::GpuRenderConfig gpu_render_config = cuda_kernels::BridgeRenderConfig(render_config);
     cuda_kernels::GpuAccelerationStructureConfig gpu_accel_config =
@@ -107,6 +164,7 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
     cuda_kernels::GpuBuildParams gpu_build_params{
         gpu_accel_config,
         gpu_scene.GetView(),
+        stats.construction_stats,
     };
 
     // Launch Build and Render
@@ -158,6 +216,9 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
 
     // Download framebuffer
     gpu_framebuffer.Download(framebuffer);
+
+    stats.rt_stats.frame_time = frame_t.elapsed_s();
+    Logger::info("GPU Renderer: Rendering done");
 
     return render_result;
 }

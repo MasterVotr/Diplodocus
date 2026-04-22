@@ -14,12 +14,12 @@ void DummyAccelerationStucture::Build(const AccelerationStructureConfig& acceler
 
     triangles_ = triangles;
 
-    stats.accel_stats.build_time = build_t.elapsed_ms();
-    stats.accel_stats.memory_consumption = sizeof(triangles_);
+    stats.construction_stats.build_time = build_t.elapsed_ms();
+    stats.construction_stats.memory_consumption = sizeof(triangles_);
 }
 
 bool DummyAccelerationStucture::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backface_culling) const {
-    stats.accel_stats.query_count += 1;
+    stats.rt_stats.query_count += 1;
     bool hit = false;
     float t_hit = ray.t_max;
     int tri_hit;
@@ -30,7 +30,7 @@ bool DummyAccelerationStucture::Intersect(Stats& stats, const Ray& ray, RayHit& 
     float b1, b2, t;
     for (; tri < triangles_.size(); tri++) {
         t = triangles_[tri].IntersectRay(ray, b1, b2, backface_culling);
-        stats.accel_stats.intersection_count += 1;
+        stats.rt_stats.intersection_count += 1;
         if (t > kEpsilon && t < t_hit) {
             hit = true;
             t_hit = t;
@@ -64,12 +64,12 @@ bool DummyAccelerationStucture::Intersect(Stats& stats, const Ray& ray, RayHit& 
 }
 
 bool DummyAccelerationStucture::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) const {
-    stats.accel_stats.query_count += 1;
+    stats.rt_stats.query_count += 1;
 
     float b1, b2, t;
     for (size_t tri = 0; tri < triangles_.size(); tri++) {
         t = triangles_[tri].IntersectRay(ray, b1, b2, backface_culling);
-        stats.accel_stats.intersection_count += 1;
+        stats.rt_stats.intersection_count += 1;
         if (t > kEpsilon && t <= ray.t_max) {
             return true;
         }

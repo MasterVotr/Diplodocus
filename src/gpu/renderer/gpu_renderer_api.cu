@@ -35,8 +35,6 @@ struct MergeRaytracingStatsFunctor {
     }
 };
 
-}  // namespace
-
 __global__ void HelloCundaKernel() { printf("Hello from Cunda!\n"); }
 
 __global__ void ClearFramebufferKernel(GpuFramebufferView framebuffer, float3 color) {
@@ -76,6 +74,8 @@ __global__ void PathtracingKernel(GpuTraceContext<Acceleration> trace_ctx, Raytr
 
     trace_ctx.framebuffer.data[idx] = pixel_color;
 }
+
+}  // namespace
 
 void HelloCunda() {
     PrintCudaDiagnostics();

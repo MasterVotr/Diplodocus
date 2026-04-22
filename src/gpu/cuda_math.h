@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 #include <vector_functions.h>
+#include <vector_types.h>
 
 #include <cmath>
 
@@ -34,7 +35,12 @@ HDI float3 operator*(float3 a, float3 b) { return make_float3(a.x * b.x, a.y * b
 HDI float3 operator/(float3 a, float s) { return a * (1.0f / s); }
 HDI float3 operator/(float3 a, float3 b) { return make_float3(a.x / b.x, a.y / b.y, a.z / b.z); }
 
+// compare
+HDI bool LessAny(float3 a, float3 b) { return a.x < b.x || a.y < b.y || a.z < b.z; }
+HDI bool LessAll(float3 a, float3 b) { return a.x < b.x && a.y < b.y && a.z < b.z; }
+
 // math
+HDI float3 Pow(float3 b, float e) { return make_float3(Pow(b.x, e), Pow(b.y, e), Pow(b.z, e)); }
 HDI float3 Fmin(float3 a, float3 b) { return make_float3(Fmin(a.x, b.x), Fmin(a.y, b.y), Fmin(a.z, b.z)); }
 HDI float3 Fmax(float3 a, float3 b) { return make_float3(Fmax(a.x, b.x), Fmax(a.y, b.y), Fmax(a.z, b.z)); }
 HDI float3 Abs(float3 v) { return make_float3(Abs(v.x), Abs(v.y), Abs(v.z)); }

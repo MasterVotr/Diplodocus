@@ -102,6 +102,7 @@ RenderConfig JsonConfigLoader::LoadRenderConfig(nlohmann::json json_config) {
     SetIfExists(json_config, "area_light_sample_cnt", render_config.area_light_sample_cnt);
     SetIfExists(json_config, "pixel_sample_cnt", render_config.pixel_sample_cnt);
     SetIfExists(json_config, "seed", render_config.seed);
+    SetIfExists(json_config, "gamma_correction", render_config.gamma_correction);
 
     return render_config;
 }

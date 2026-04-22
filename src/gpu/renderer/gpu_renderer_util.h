@@ -2,8 +2,11 @@
 
 #include <vector_types.h>
 
+#include <cstdint>
+
 #include "gpu/cuda_math.h"
 #include "gpu/cuda_utils.h"
+#include "gpu/renderer/gpu_ray_context.h"
 #include "gpu/renderer/gpu_trace_context.h"
 #include "gpu/scene/gpu_ray.h"
 #include "gpu/scene/gpu_ray_hit.h"
@@ -14,15 +17,17 @@
 
 namespace diplodocus::cuda_kernels {
 
-DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t light_id, uint32_t sample_idx,
-                                 uint32_t dimension) {
-    uint32_t key = 0;
-    key ^= seed * 0x9e3779b1U;
-    key ^= px * 0x165667b1U;
-    key ^= py * 0xd3a2646cU;
-    key ^= light_id * 0x85ebca6bU;
-    key ^= sample_idx * 0xc2b2ae35U;
-    key ^= dimension * 0x27d4eb2fU;
+constexpr float kGamma = 2.2f;
+
+DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t ps, uint32_t l, uint32_t ls,
+                                 uint32_t d) {
+    uint32_t key = seed;
+    key = HashCombine(key, px);
+    key = HashCombine(key, py);
+    key = HashCombine(key, ps);
+    key = HashCombine(key, l);
+    key = HashCombine(key, ls);
+    key = HashCombine(key, d);
 
     return U01FromU32(HashU32(key));
 }
@@ -73,11 +78,14 @@ DI float3 LocalIlluminationPointLights(RaytracingStats& rt_stats, const GpuTrace
 
 template <typename Acceleration>
 DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx,
-                                      int pixel_x, int pixel_y, const GpuRayHit& ray_hit) {
+                                      const GpuRayContext& ray_ctx, const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
     const auto& scene = trace_ctx.scene;
     int seed = trace_ctx.render_config.seed;
     int al_sample_cnt = trace_ctx.render_config.area_light_sample_cnt;
+    int pixel_x = ray_ctx.pixel_x;
+    int pixel_y = ray_ctx.pixel_y;
+    int pixel_s = ray_ctx.pixel_s;
 
     for (int al = 0; al < scene.al_cnt; al++) {
         int al_t = scene.al_tri_id[al];
@@ -88,8 +96,8 @@ DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceC
 
         for (int s = 0; s < al_sample_cnt; s++) {
             // Point light sample
-            float r1 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 0);
-            float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, al, s, 1);
+            float r1 = RandomAreaLightSample01(seed, pixel_x, pixel_y, pixel_s, al, s, 0);
+            float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, pixel_s, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
             if (IsShadowed<Acceleration>(rt_stats, trace_ctx, ray_hit, pl_pos)) continue;

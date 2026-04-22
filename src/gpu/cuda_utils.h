@@ -44,6 +44,18 @@ inline void PrintCudaDiagnostics() {
 }
 
 // Hashing
+DI uint32_t HashCombine(uint32_t h, uint32_t v) {
+    v ^= v >> 16;
+    v *= 0x7feb352d;  // MurmurHash3 constant
+    v ^= v >> 15;
+    v *= 0x846ca68b;  // MurmurHash3 constant
+    v ^= v >> 16;
+
+    h ^= v;
+    h *= 0x9e3779b1;  // golden ratio constant
+    return h;
+}
+
 DI uint32_t HashU32(uint32_t x) {
     // Avalanche hash
     x ^= x >> 16;

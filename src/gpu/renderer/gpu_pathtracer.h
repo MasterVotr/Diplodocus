@@ -19,7 +19,7 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
 
     // Outer while loop
     int max_depth = trace_ctx.render_config.max_depth;
-    while (ray_ctx.depth < max_depth) {
+    while (!LessAll(throughput, Splat(0.01f))) {
         GpuRayHit ray_hit;
         bool hit = trace_ctx.accel.Intersect(ray_ctx.rt_stats, scene, ray_ctx.ray, ray_hit, false);
 
@@ -39,8 +39,7 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
         // Local illuminations contribution
         float3 pl_contrib = LocalIlluminationPointLights<Acceleration>(ray_ctx.rt_stats, trace_ctx, ray_hit);
         radiance = radiance + throughput * pl_contrib;
-        float3 al_contrib = LocalIlluminationAreaLights<Acceleration>(ray_ctx.rt_stats, trace_ctx, ray_ctx.pixel_x,
-                                                                      ray_ctx.pixel_y, ray_hit);
+        float3 al_contrib = LocalIlluminationAreaLights<Acceleration>(ray_ctx.rt_stats, trace_ctx, ray_ctx, ray_hit);
         radiance = radiance + throughput * al_contrib;
 
         // Reflection and Refraction
@@ -65,7 +64,7 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
         }
 
         // Use RandomAreaLightSample01 for random [0,1] prand number - maybe craete a separate function later?
-        float r = RandomAreaLightSample01(seed, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.depth, 0, 0);
+        float r = RandomAreaLightSample01(seed, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.pixel_s, ray_ctx.depth, 0, 0);
         if (r <= prob_refl) {  // Reflect
             float3 refl_dir = Reflect(ray_ctx.ray, ray_hit);
             float3 refl_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refl_dir);

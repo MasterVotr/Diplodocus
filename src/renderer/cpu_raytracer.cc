@@ -25,15 +25,13 @@ namespace diplodocus {
 
 namespace {
 
-inline float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t light_id, uint32_t sample_idx,
-                                     uint32_t dimension) {
-    uint32_t key = 0;
-    key ^= seed * 0x9e3779b1U;
-    key ^= px * 0x165667b1U;
-    key ^= py * 0xd3a2646cU;
-    key ^= light_id * 0x85ebca6bU;
-    key ^= sample_idx * 0xc2b2ae35U;
-    key ^= dimension * 0x27d4eb2fU;
+inline float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t l, uint32_t ls, uint32_t d) {
+    uint32_t key = seed;
+    key = HashCombine(key, px);
+    key = HashCombine(key, py);
+    key = HashCombine(key, l);
+    key = HashCombine(key, ls);
+    key = HashCombine(key, d);
 
     return U01FromU32(HashU32(key));
 }

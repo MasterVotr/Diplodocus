@@ -38,7 +38,7 @@ template <typename Acceleration>
 DI float3 LocalIlluminationPointLights(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx,
                                        const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
-    const auto& scene = trace_ctx.scene;
+    const GpuSceneView& scene = trace_ctx.scene;
 
     for (int pl = 0; pl < scene.pl_cnt; pl++) {
         if (IsShadowed<Acceleration>(rt_stats, trace_ctx, ray_hit, scene.pl_pos[pl])) continue;
@@ -65,7 +65,7 @@ template <typename Acceleration>
 DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx,
                                       const GpuRayContext& ray_ctx, const GpuRayHit& ray_hit) {
     float3 color = Splat(0.0f);  // Black color
-    const auto& scene = trace_ctx.scene;
+    const GpuSceneView& scene = trace_ctx.scene;
     int seed = trace_ctx.render_config.seed;
     int al_sample_cnt = trace_ctx.render_config.area_light_sample_cnt;
     int pixel_x = ray_ctx.pixel_x;

@@ -44,6 +44,11 @@ inline void PrintCudaDiagnostics() {
 }
 
 // Hashing
+DI float U01FromU32(uint32_t x) {
+    // Use the top 24 bits -> float mantisa
+    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
+}
+
 DI uint32_t HashCombine(uint32_t h, uint32_t v) {
     v ^= v >> 16;
     v *= 0x7feb352d;  // MurmurHash3 constant
@@ -53,6 +58,7 @@ DI uint32_t HashCombine(uint32_t h, uint32_t v) {
 
     h ^= v;
     h *= 0x9e3779b1;  // golden ratio constant
+
     return h;
 }
 
@@ -66,9 +72,14 @@ DI uint32_t HashU32(uint32_t x) {
     return x;
 }
 
-DI float U01FromU32(uint32_t x) {
-    // Use the top 24 bits -> float mantisa
-    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
+template <typename... Values>
+DI float HashValuesU01(uint32_t seed, Values&&... values) {
+    uint32_t key = seed;
+    for (const auto& v : {values...}) {
+        key = HashCombine(key, static_cast<int32_t>(v));
+    }
+
+    return U01FromU32(HashU32(key));
 }
 
 }  // namespace diplodocus::cuda_kernels

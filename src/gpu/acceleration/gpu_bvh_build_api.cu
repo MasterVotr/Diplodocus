@@ -29,7 +29,20 @@
 
 namespace diplodocus::cuda_kernels {
 
+namespace {
+
 constexpr int kBvhBuildThreadsPerBlock = 256;
+
+inline void UpdateCompactionCount(const CudaBuffer<int32_t>& offsets, const CudaBuffer<int32_t>& flags, int32_t& count,
+                                  int32_t n) {
+    int32_t offset_last = 0;
+    int32_t flag_last = 0;
+
+    CUDA_CHECK(cudaMemcpy(&offset_last, offsets.Data() + (n - 1), sizeof(int32_t), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&flag_last, flags.Data() + (n - 1), sizeof(int32_t), cudaMemcpyDeviceToHost));
+
+    count = offset_last + flag_last;
+}
 
 __global__ void CalculateAabbsKernel(GpuSceneView scene, int tri_count, GpuAabb* aabbs) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -143,16 +156,7 @@ __global__ void MergeAndCompactKernel(int32_t n, GpuAabb* aabbs, int32_t* node_i
     }
 }
 
-inline void UpdateCompactionCount(const CudaBuffer<int32_t>& offsets, const CudaBuffer<int32_t>& flags, int32_t& count,
-                                  int32_t n) {
-    int32_t offset_last = 0;
-    int32_t flag_last = 0;
-
-    CUDA_CHECK(cudaMemcpy(&offset_last, offsets.Data() + (n - 1), sizeof(int32_t), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(&flag_last, flags.Data() + (n - 1), sizeof(int32_t), cudaMemcpyDeviceToHost));
-
-    count = offset_last + flag_last;
-}
+}  // namespace
 
 template <>
 void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>(

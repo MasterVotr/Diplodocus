@@ -61,7 +61,7 @@ void ConsoleStatsExporter::ExportRaytracingStats(const RaytracingStats& rt_stats
     PrintLnFmt(std::cout, " Primary ray count:          {}", rt_stats.primary_ray_count);
     PrintLnFmt(std::cout, " Secondary ray count:        {}", rt_stats.secondary_ray_count);
     PrintLnFmt(std::cout, " Shadow ray count:           {}", rt_stats.shadow_ray_count);
-    PrintLnFmt(std::cout, " Trace perfomance:           {:.5} Mray/s", rays_per_second / 1e6f);
+    PrintLnFmt(std::cout, " Trace performance:          {:.5} Mray/s", rays_per_second / 1e6f);
     PrintLnFmt(std::cout, "# Traversal:                             ");
     PrintLnFmt(std::cout, " Query count:                {}", rt_stats.query_count);
     PrintLnFmt(std::cout, " Intersection count:         {}", rt_stats.intersection_count);

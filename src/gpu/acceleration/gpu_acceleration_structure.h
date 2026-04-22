@@ -30,7 +30,7 @@ struct GpuBvhNode<BoundingVolumeType::kSobb> {
     int32_t parent;
     int32_t left;   // t_begin/tri_idx if leaf
     int32_t right;  // t_count if leaf
-    int32_t t_leaf;
+    int32_t is_leaf;
 };
 
 template <BoundingVolumeType BV>
@@ -59,9 +59,11 @@ class GpuBvh {
             root_.Data(),
         };
     }
-    void Download(std::vector<GpuBvhNode<BV>>& nodes_cpu_dst, std::vector<int32_t>& tri_idxs_cpu_dst) const {
+    void Download(std::vector<GpuBvhNode<BV>>& nodes_cpu_dst, std::vector<int32_t>& tri_idxs_cpu_dst,
+                  int32_t& root) const {
         nodes_.Download(nodes_cpu_dst);
         tri_idxs_.Download(tri_idxs_cpu_dst);
+        root = root_.Download();
     }
 
    private:

@@ -52,13 +52,13 @@ void SBvh::Build(const AccelerationStructureConfig& accel_config, Stats& stats, 
     next_node_idx_ = 1;
 
     Subdivide(accel_config, 0, 0, cb, tcs, tbs);
-    stats.accel_stats.build_time = build_t.elapsed_ms();
+    stats.construction_stats.build_time = build_t.elapsed_ms();
 
     CalculateStats(stats);
 }
 
 bool SBvh::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backface_culling) const {
-    stats.accel_stats.query_count++;
+    stats.rt_stats.query_count++;
 
     bool hit = false;
     float t_hit = ray.t_max;
@@ -73,14 +73,14 @@ bool SBvh::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backfac
         stack.pop();
 
         const BvhNode& node = nodes_[node_idx];
-        stats.accel_stats.traversal_count++;
+        stats.rt_stats.traversal_count++;
 
         if (node.is_leaf()) {
             float b1, b2, t;
             for (size_t i = 0; i < node.t_count; i++) {
                 int tri_idx = triangle_indices_[node.t_begin + i];
                 t = triangles_[tri_idx].IntersectRay(ray, b1, b2, backface_culling);
-                stats.accel_stats.intersection_count++;
+                stats.rt_stats.intersection_count++;
 
                 if (t > kEpsilon && t < t_hit) {
                     hit = true;
@@ -145,7 +145,7 @@ bool SBvh::Intersect(Stats& stats, const Ray& ray, RayHit& ray_hit, bool backfac
 }
 
 bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) const {
-    stats.accel_stats.query_count++;
+    stats.rt_stats.query_count++;
 
     std::stack<size_t> s;
     s.emplace(0);
@@ -155,7 +155,7 @@ bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) con
         s.pop();
 
         const BvhNode& node = nodes_[node_idx];
-        stats.accel_stats.traversal_count++;
+        stats.rt_stats.traversal_count++;
 
         if (node.is_leaf()) {
             // Test triangles: return on first hit
@@ -163,7 +163,7 @@ bool SBvh::IntersectAny(Stats& stats, const Ray& ray, bool backface_culling) con
                 int tri_idx = triangle_indices_[node.t_begin + i];
                 float b1, b2;
                 float t = triangles_[tri_idx].IntersectRay(ray, b1, b2, backface_culling);
-                stats.accel_stats.intersection_count++;
+                stats.rt_stats.intersection_count++;
 
                 if (t > kEpsilon && t < ray.t_max) {
                     return true;  // Any hit found
@@ -348,14 +348,14 @@ void SBvh::CalculateStats(Stats& stats) const {
         s.pop();
 
         const BvhNode& node = nodes_[node_idx];
-        stats.accel_stats.node_count++;
+        stats.construction_stats.node_count++;
 
         if (node.is_leaf()) {
-            stats.accel_stats.leaf_node_count++;
+            stats.construction_stats.leaf_node_count++;
             continue;
         }
 
-        stats.accel_stats.inner_node_count++;
+        stats.construction_stats.inner_node_count++;
 
         size_t left_child_idx = node.t_begin;
         size_t right_child_idx = left_child_idx + 1;
@@ -363,7 +363,7 @@ void SBvh::CalculateStats(Stats& stats) const {
         s.emplace(right_child_idx, depth + 1);
     }
 
-    stats.accel_stats.memory_consumption = nodes_.size() * sizeof(BvhNode);
+    stats.construction_stats.memory_consumption = nodes_.size() * sizeof(BvhNode);
 }
 
 }  // namespace diplodocus

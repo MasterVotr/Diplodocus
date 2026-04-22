@@ -50,13 +50,14 @@ inline Vec3 OffsetRayOrigin(const Vec3& pos, float eps, const Vec3& geom_normal,
 RenderResult CpuRaytracer::StartRender(const RenderConfig& render_config,
                                        const AccelerationStructureConfig& acceleration_config, const Scene& scene,
                                        Framebuffer& framebuffer, Stats& stats) {
+    Logger::info("CPU Renderer: Rendering...");
+    Timer frame_t;
     framebuffer.Resize(render_config.width, render_config.height);
     framebuffer.Clear();
 
     std::unique_ptr<AccelerationStructure> accel_stuct = CreateAccelerationStucture(acceleration_config);
     accel_stuct->Build(acceleration_config, stats, scene.Triangles());
 
-    Logger::info("CPU Renderer: Rendering...");
     Timer rt_time;
 
     const int w = framebuffer.GetWidth();
@@ -86,6 +87,7 @@ RenderResult CpuRaytracer::StartRender(const RenderConfig& render_config,
     }
 
     stats.rt_stats.raytracing_time = rt_time.elapsed_s();
+    stats.rt_stats.frame_time = frame_t.elapsed_s();
     Logger::info("CPU Renderer: Rendering done");
 
     return RenderResult::kDone;

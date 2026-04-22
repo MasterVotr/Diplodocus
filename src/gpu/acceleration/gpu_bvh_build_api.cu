@@ -2,7 +2,6 @@
 #include <driver_types.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
-#include <thrust/reduce.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <vector_functions.h>
@@ -15,7 +14,6 @@
 #include <cub/device/device_reduce.cuh>
 #include <cub/device/device_scan.cuh>
 #include <thrust/detail/scan.inl>
-#include <type_traits>
 
 #include "gpu/acceleration/gpu_aabb.h"
 #include "gpu/acceleration/gpu_aabb_ops.h"
@@ -27,6 +25,7 @@
 #include "gpu/cuda_math.h"
 #include "gpu/cuda_utils.h"
 #include "gpu/scene/gpu_scene.h"
+#include "util/timer.h"
 
 namespace diplodocus::cuda_kernels {
 
@@ -94,10 +93,6 @@ __global__ void MatchAndClassifyKernel(int32_t n, int32_t* nns, int32_t* valid_f
 
     // Cluster does not have a nearest neighbor - should not happen
     assert(j != -1 && "MatchAndClassifyKernel: Cluster does not have a nearest neighbor");
-    // if (j == -1) {
-    //     printf("MatchAndClassifyKernel: How did you get here %d?\n", idx);
-    //     return;
-    // }
 
     int32_t leader = nns[j] == idx && idx < j;
     int32_t single = nns[j] != idx;
@@ -168,53 +163,58 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
     }
 
     int block_count = (bvh.tri_count + kBvhBuildThreadsPerBlock - 1) / kBvhBuildThreadsPerBlock;
+    Timer init_t;
+    Timer timer;
 
     // Initialize triangle indexes
     thrust::device_ptr<int32_t> thrustp_tri_idxs = thrust::device_pointer_cast(bvh.tri_idxs);
     thrust::sequence(thrustp_tri_idxs, thrustp_tri_idxs + bvh.tri_count);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
+    params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Triangle bboxes
     CudaBuffer<GpuAabb> aabbs;  // Cin (bounds)
     aabbs.Allocate(bvh.tri_count);
+    timer.reset();
     CalculateAabbsKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(params.scene, bvh.tri_count, aabbs.Data());
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    GpuAabb* h_aabbs = new GpuAabb[aabbs.Size()];
-    aabbs.Download(h_aabbs, aabbs.Size());
+    params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Scene bbox using cub::reduce
     CudaValue<GpuAabb> scene_aabb;
     void* d_tmp_storage = nullptr;
     size_t d_tmp_storage_bytes = 0;
     GpuAabb empty_aabb{Splat(kInfinity), Splat(-kInfinity)};
+    timer.reset();
     cub::DeviceReduce::Reduce(d_tmp_storage, d_tmp_storage_bytes, aabbs.Data(), scene_aabb.Data(), bvh.tri_count,
                               ExpandAabb(), empty_aabb);
-    cudaMalloc(&d_tmp_storage, d_tmp_storage_bytes);
+    CUDA_CHECK(cudaMalloc(&d_tmp_storage, d_tmp_storage_bytes));
     cub::DeviceReduce::Reduce(d_tmp_storage, d_tmp_storage_bytes, aabbs.Data(), scene_aabb.Data(), bvh.tri_count,
                               ExpandAabb(), empty_aabb);
-    cudaFree(d_tmp_storage);
+    CUDA_CHECK(cudaFree(d_tmp_storage));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    GpuAabb h_scene_aabb = scene_aabb.Download();
+    params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Morton codes
     CudaBuffer<uint32_t> mcodes;
     mcodes.Allocate(bvh.tri_count);
+    timer.reset();
     CalculateMortonsKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(bvh.tri_count, aabbs.Data(), scene_aabb.Data(),
                                                                       mcodes.Data());
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    uint32_t* h_mcodes = new uint32_t[mcodes.Size()];
-    mcodes.Download(h_mcodes, mcodes.Size());
+    params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Sort Morton codes
     thrust::device_ptr<uint32_t> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
+    timer.reset();
     thrust::stable_sort_by_key(d_mcodes, d_mcodes + bvh.tri_count, thrustp_tri_idxs);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    mcodes.Download(h_mcodes, mcodes.Size());
+    params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Main while loop
     CudaBuffer<int32_t> node_idxs;       // Cin (indices)
@@ -245,10 +245,14 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
     CUDA_CHECK(cudaDeviceSynchronize());
 
     // Setup leaves on bvh
+    timer.reset();
     InitLeavesKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(bvh.tri_count, bvh.nodes, aabbs.Data(),
                                                                 node_idxs.Data());
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
+    params.construction_stats.kernel_time += timer.elapsed_ns();
+
+    params.construction_stats.init_time = init_t.elapsed_ns();
 
     int radius = params.accel_config.nn_search_radius;
     int current_n = bvh.tri_count;
@@ -258,35 +262,53 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
         block_count = (current_n + kBvhBuildThreadsPerBlock - 1) / kBvhBuildThreadsPerBlock;
 
         // Nearest neighbor
+        timer.reset();
         FindNearestNeighborKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(current_n, aabbs.Data(), nns.Data(),
                                                                              radius);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
+        auto elapsed_ns = timer.elapsed_ns();
+        params.construction_stats.nn_search_time += elapsed_ns;
+        params.construction_stats.kernel_time += elapsed_ns;
 
         // Merge
+        timer.reset();
         MatchAndClassifyKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(current_n, nns.Data(), valid_flags.Data(),
                                                                           leader_flags.Data());
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
+        elapsed_ns = timer.elapsed_ns();
+        params.construction_stats.match_and_classify_time += elapsed_ns;
+        params.construction_stats.kernel_time += elapsed_ns;
 
         // Compaction
+        timer.reset();
         thrust::exclusive_scan(thrust::device, valid_flags.Data(), valid_flags.Data() + current_n,
                                valid_offsets.Data());
         thrust::exclusive_scan(thrust::device, leader_flags.Data(), leader_flags.Data() + current_n,
                                leader_offsets.Data());
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
+        elapsed_ns = timer.elapsed_ns();
+        params.construction_stats.prefix_scan_time += elapsed_ns;
+        params.construction_stats.kernel_time += elapsed_ns;
 
+        timer.reset();
         UpdateCompactionCount(valid_offsets, valid_flags, valid_cnt, current_n);
         UpdateCompactionCount(leader_offsets, leader_flags, leader_cnt, current_n);
+        params.construction_stats.memcopy_time += timer.elapsed_ns();
         assert(leader_cnt > 0 && "BvhBuild::Ploc: At least one merge has to happen each round");
 
+        timer.reset();
         MergeAndCompactKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(
             current_n, aabbs.Data(), node_idxs.Data(), nns.Data(), valid_offsets.Data(), valid_flags.Data(),
             leader_offsets.Data(), leader_flags.Data(), bvh.nodes, base_node_offset, aabbs_next.Data(),
             node_idxs_next.Data());
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
+        elapsed_ns = timer.elapsed_ns();
+        params.construction_stats.merge_and_compact_time += elapsed_ns;
+        params.construction_stats.kernel_time += elapsed_ns;
 
         base_node_offset += leader_cnt;
 
@@ -297,7 +319,9 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
         // printf("BvhBuild::Ploc: while loop round results: valid_cnt = %d, merge_cnt = %d\n", valid_cnt, leader_cnt);
     }
 
+    timer.reset();
     cudaMemcpy(bvh.root, node_idxs.Data() + 0, sizeof(*bvh.root), cudaMemcpyDeviceToDevice);
+    params.construction_stats.merge_and_compact_time += timer.elapsed_ns();
 
     // TODO: Collapse leaves
 }

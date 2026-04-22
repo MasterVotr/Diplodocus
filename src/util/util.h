@@ -21,6 +21,11 @@ constexpr float kInfinity = std::numeric_limits<float>::max();
 }
 
 // Hashing
+[[nodiscard]] inline float U01FromU32(uint32_t x) {
+    // Use the top 24 bits -> flaot mantisa
+    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
+}
+
 [[nodiscard]] inline uint32_t HashCombine(uint32_t h, uint32_t v) {
     // Avalanche hash
     v ^= v >> 16;
@@ -46,9 +51,14 @@ constexpr float kInfinity = std::numeric_limits<float>::max();
     return x;
 }
 
-[[nodiscard]] static inline float U01FromU32(uint32_t x) {
-    // Use the top 24 bits -> flaot mantisa
-    return (x >> 8) * (1.0f / 16777216.0f);  // 2^24
+template <typename... Values>
+[[nodiscard]] inline float HashValuesU01(uint32_t seed, Values&&... values) {
+    uint32_t key = seed;
+    for (const auto& v : {values...}) {
+        key = HashCombine(key, static_cast<int32_t>(v));
+    }
+
+    return U01FromU32(HashU32(key));
 }
 
 // Printing

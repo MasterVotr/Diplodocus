@@ -168,7 +168,8 @@ Vec3 CpuRaytracer::LocalIlluminationAreaLights(const TraceContext& trace_ctx, co
 
     // Area Lights
     int sample_cnt = trace_ctx.render_config.area_light_sample_cnt;
-    for (size_t al = 0; al < trace_ctx.scene.AreaLights().size(); al++) {
+    int al_cnt = trace_ctx.scene.AreaLights().size();
+    for (int al = 0; al < al_cnt; al++) {
         const auto& area_light = trace_ctx.scene.AreaLights()[al];
 
         // Check if triangle hit is the area light
@@ -178,8 +179,8 @@ Vec3 CpuRaytracer::LocalIlluminationAreaLights(const TraceContext& trace_ctx, co
         for (int s = 0; s < sample_cnt; s++) {
             // Sample light position
             PointLight light_sample;
-            float r1 = RandomAreaLightSample01(42, pixel_ctx.x, pixel_ctx.y, al, s, 0);
-            float r2 = RandomAreaLightSample01(42, pixel_ctx.x, pixel_ctx.y, al, s, 1);
+            float r1 = HashValuesU01(trace_ctx.render_config.seed, pixel_ctx.x, pixel_ctx.y, al, s, 0);
+            float r2 = HashValuesU01(trace_ctx.render_config.seed, pixel_ctx.x, pixel_ctx.y, al, s, 1);
             light_sample.pos = light_triangle.SampleSurface(r1, r2);
 
             // If shadowed discard

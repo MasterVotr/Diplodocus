@@ -2,8 +2,6 @@
 
 #include <vector_types.h>
 
-#include <cstdint>
-
 #include "gpu/cuda_math.h"
 #include "gpu/cuda_utils.h"
 #include "gpu/renderer/gpu_ray_context.h"
@@ -18,19 +16,6 @@
 namespace diplodocus::cuda_kernels {
 
 constexpr float kGamma = 2.2f;
-
-DI float RandomAreaLightSample01(uint32_t seed, uint32_t px, uint32_t py, uint32_t ps, uint32_t l, uint32_t ls,
-                                 uint32_t d) {
-    uint32_t key = seed;
-    key = HashCombine(key, px);
-    key = HashCombine(key, py);
-    key = HashCombine(key, ps);
-    key = HashCombine(key, l);
-    key = HashCombine(key, ls);
-    key = HashCombine(key, d);
-
-    return U01FromU32(HashU32(key));
-}
 
 template <typename Acceleration>
 DI bool IsShadowed(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration>& trace_ctx, const GpuRayHit& ray_hit,
@@ -96,8 +81,8 @@ DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceC
 
         for (int s = 0; s < al_sample_cnt; s++) {
             // Point light sample
-            float r1 = RandomAreaLightSample01(seed, pixel_x, pixel_y, pixel_s, al, s, 0);
-            float r2 = RandomAreaLightSample01(seed, pixel_x, pixel_y, pixel_s, al, s, 1);
+            float r1 = HashValuesU01(seed, pixel_x, pixel_y, pixel_s, al, s, 0);
+            float r2 = HashValuesU01(seed, pixel_x, pixel_y, pixel_s, al, s, 1);
             float3 pl_pos =
                 TriangleSampleSurface(scene.tri_v0_pos[al_t], scene.tri_v1_pos[al_t], scene.tri_v2_pos[al_t], r1, r2);
             if (IsShadowed<Acceleration>(rt_stats, trace_ctx, ray_hit, pl_pos)) continue;

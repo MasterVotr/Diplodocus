@@ -2,6 +2,7 @@
 
 #include "gpu/cuda_compat.h"
 #include "gpu/cuda_math.h"
+#include "gpu/cuda_utils.h"
 #include "gpu/renderer/gpu_ray_context.h"
 #include "gpu/renderer/gpu_renderer_util.h"
 #include "gpu/renderer/gpu_trace_context.h"
@@ -63,8 +64,7 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
             prob_refl = 0.0f;
         }
 
-        // Use RandomAreaLightSample01 for random [0,1] prand number - maybe craete a separate function later?
-        float r = RandomAreaLightSample01(seed, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.pixel_s, ray_ctx.depth, 0, 0);
+        float r = HashValuesU01(seed, ray_ctx.pixel_x, ray_ctx.pixel_y, ray_ctx.pixel_s, ray_ctx.depth);
         if (r <= prob_refl) {  // Reflect
             float3 refl_dir = Reflect(ray_ctx.ray, ray_hit);
             float3 refl_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, refl_dir);

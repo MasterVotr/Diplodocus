@@ -5,7 +5,7 @@ set -euo pipefail
 preset="${1:-debug}"
 
 case "$preset" in
-  debug|relwithdebinfo|release)
+  debug|release)
     ;;
   *)
     echo "Usage: $0 [debug|release]" >&2

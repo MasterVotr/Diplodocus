@@ -24,6 +24,7 @@ struct RenderConfig {
     int area_light_sample_cnt = 8;
     int pixel_sample_cnt = 4;
     int seed = 42;
+    float gamma_correction = 1.0f;
 };
 
 }  // namespace diplodocus

@@ -11,6 +11,7 @@ struct GpuRenderConfig {
     int area_light_sample_cnt = 2;
     int pixel_sample_cnt = 32;
     int seed = 42;
+    float gamma_correction = 1.0f;
 };
 
 }  // namespace diplodocus::cuda_kernels

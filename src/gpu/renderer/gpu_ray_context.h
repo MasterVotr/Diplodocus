@@ -9,6 +9,7 @@ struct GpuRayContext {
     GpuRay ray;
     int pixel_x;
     int pixel_y;
+    int pixel_s;
     int depth;
     RaytracingStats& rt_stats;
 };

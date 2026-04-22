@@ -17,6 +17,7 @@ GpuRenderConfig BridgeRenderConfig(const RenderConfig& render_config) {
     gpu_render_config.area_light_sample_cnt = render_config.area_light_sample_cnt;
     gpu_render_config.pixel_sample_cnt = render_config.pixel_sample_cnt;
     gpu_render_config.seed = render_config.seed;
+    gpu_render_config.gamma_correction = render_config.gamma_correction;
 
     return gpu_render_config;
 }

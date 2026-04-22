@@ -21,13 +21,28 @@ constexpr float kInfinity = std::numeric_limits<float>::max();
 }
 
 // Hashing
-[[nodiscard]] inline uint32_t HashU32(uint32_t x) {
+[[nodiscard]] inline uint32_t HashCombine(uint32_t h, uint32_t v) {
     // Avalanche hash
+    v ^= v >> 16;
+    v *= 0x7feb352d;  // MurmurHash3 constant
+    v ^= v >> 15;
+    v *= 0x846ca68b;  // MurmurHash3 constant
+    v ^= v >> 16;
+
+    h ^= v;
+    h *= 0x9e3779b1;  // golden ratio constant
+
+    return h;
+}
+
+[[nodiscard]] inline uint32_t HashU32(uint32_t x) {
+    // Avalanche hash - MurmurHash3 finalizer
     x ^= x >> 16;
-    x *= 0x7feb352dU;
-    x ^= x >> 15;
-    x *= 0x846ca68bU;
+    x *= 0x85ebca6b;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35;
     x ^= x >> 16;
+
     return x;
 }
 
@@ -58,7 +73,7 @@ static void PrintLnFmt(std::ostream& os, std::format_string<Args...> fmt, Args&&
 // Enum parsing
 template <typename Enum>
 Enum ParseEnum(std::string_view) {
-    static_assert(sizeof(Enum) == 0, "ParseEnum not implemented fr this enum type");
+    static_assert(sizeof(Enum) == 0, "ParseEnum not implemented for this enum type");
 }
 
 }  // namespace diplodocus

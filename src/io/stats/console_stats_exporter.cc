@@ -31,6 +31,8 @@ void ConsoleStatsExporter::ExportConstructionStats(const ConstructionStats& cons
     PrintLnFmt(std::cout, " Build time:               {:.5} ms", construction_stats.build_time);
     PrintLnFmt(std::cout, " Init time:                {:.5} ms", construction_stats.init_time / 1e6);
     PrintLnFmt(std::cout, " Memory transfer time      {:.5} ms", construction_stats.memcopy_time / 1e6);
+    PrintLnFmt(std::cout, " Morton construction time: {:.5} ms", construction_stats.morton_construction_time / 1e6);
+    PrintLnFmt(std::cout, " Morton sort time:         {:.5} ms", construction_stats.morton_sort_time / 1e6);
     PrintLnFmt(std::cout, " NN search time:           {:.5} ms", construction_stats.nn_search_time / 1e6);
     PrintLnFmt(std::cout, " Match and classify time:  {:.5} ms", construction_stats.match_and_classify_time / 1e6);
     PrintLnFmt(std::cout, " Prefix scan time:         {:.5} ms", construction_stats.prefix_scan_time / 1e6);

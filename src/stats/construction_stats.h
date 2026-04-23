@@ -11,6 +11,8 @@ struct ConstructionStats {
     float build_time = 0.0;
     float init_time = 0.0f;
     float memcopy_time = 0.0f;
+    float morton_construction_time = 0.0f;
+    float morton_sort_time = 0.0f;
     float nn_search_time = 0.0f;
     float match_and_classify_time = 0.0f;
     float prefix_scan_time = 0.0f;

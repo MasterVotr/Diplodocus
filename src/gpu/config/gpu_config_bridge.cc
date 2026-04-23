@@ -29,22 +29,22 @@ GpuAccelerationStructureConfig BridgeAccelerationConfig(const AccelerationStruct
         case AccelerationStructureType::kDummy:
             return gpu_acceleration_config;  // For Dummy no acceleration structure the config does not matter
         case AccelerationStructureType::kPloc: {
-            gpu_acceleration_config.morton_type = MortonType::kMorton30;
+            gpu_acceleration_config.morton_type = MortonType::kMorton32;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kAabb;
             break;
         }
         case AccelerationStructureType::kPlocEmc: {
-            gpu_acceleration_config.morton_type = MortonType::kEmc60;
+            gpu_acceleration_config.morton_type = MortonType::kEmc64Var1;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kAabb;
             break;
         }
         case AccelerationStructureType::kPlocSobb: {
-            gpu_acceleration_config.morton_type = MortonType::kMorton30;
+            gpu_acceleration_config.morton_type = MortonType::kMorton32;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kSobb;
             break;
         }
         case AccelerationStructureType::kPlocEmcSobb: {
-            gpu_acceleration_config.morton_type = MortonType::kEmc60;
+            gpu_acceleration_config.morton_type = MortonType::kEmc64Var1;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kSobb;
             break;
         }

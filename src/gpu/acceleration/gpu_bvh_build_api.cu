@@ -159,7 +159,7 @@ __global__ void MergeAndCompactKernel(int32_t n, GpuAabb* aabbs, int32_t* node_i
 }  // namespace
 
 template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>(
+void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>(
     const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kAabb> bvh) {
     if (bvh.tri_count == 0) {
         printf("BvhBuild: No triangles to build.\n");
@@ -332,7 +332,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton30>
 }
 
 template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc60>(
+void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var1>(
     const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kAabb> bvh) {
     printf("Building PLOC + EMC\n");
     // TODO
@@ -340,7 +340,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc60>(
 }
 
 template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton30>(
+void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton32>(
     const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kSobb> bvh) {
     printf("Building PLOC + SOBB\n");
     // TODO
@@ -348,7 +348,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton30>
 }
 
 template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc60>(
+void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var1>(
     const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kSobb> bvh) {
     printf("Building PLOC + EMC + SOBB\n");
     // TODO

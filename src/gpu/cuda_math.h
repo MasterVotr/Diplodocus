@@ -13,6 +13,7 @@ namespace diplodocus::cuda_kernels {
 constexpr float kEpsilon = 1e-6;
 constexpr float kInfinity = MAXFLOAT;
 
+HDI float Pow(float b, int e) { return pow(b, e); }
 HDI float Pow(float b, float e) { return pow(b, e); }
 HDI float Sqrt(float a) { return sqrtf(a); }
 HDI float Fmin(float a, float b) { return fminf(a, b); }

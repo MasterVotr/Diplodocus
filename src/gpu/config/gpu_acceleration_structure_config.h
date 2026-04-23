@@ -2,7 +2,7 @@
 
 namespace diplodocus::cuda_kernels {
 
-enum class MortonType { kMorton32, kEmc64Var1 };
+enum class MortonType { kMorton32, kEmc64Var1, kEmc64Var2 };
 
 enum class BoundingVolumeType { kAabb, kSobb };
 

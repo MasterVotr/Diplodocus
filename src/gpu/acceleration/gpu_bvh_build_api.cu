@@ -58,8 +58,7 @@ __global__ void CalculateMortonsKernel(int tri_count, typename MortonTrait<M>::S
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= tri_count) return;
 
-    float3 centroid = (aabbs[idx].min + aabbs[idx].max) * 0.5f;
-    mcodes[idx] = MortonTrait<M>::Encode(centroid, setup);
+    mcodes[idx] = MortonTrait<M>::Encode(aabbs[idx], setup);
 }
 
 __global__ void InitLeavesKernel(int32_t tri_count, GpuBvhNode<BoundingVolumeType::kAabb>* nodes, GpuAabb* aabbs,
@@ -155,9 +154,8 @@ __global__ void MergeAndCompactKernel(int32_t n, GpuAabb* aabbs, int32_t* node_i
 
 }  // namespace
 
-template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>(
-    const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kAabb> bvh) {
+template <BoundingVolumeType BV, MortonType M>
+void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvhView<BV> bvh) {
     if (bvh.tri_count == 0) {
         printf("BvhBuild: No triangles to build.\n");
         return;
@@ -201,27 +199,30 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Morton codes
-    static_assert(cuda::std::is_same_v<MortonTrait<MortonType::kMorton32>::CodeT, uint32_t>);
-    CudaBuffer<MortonTrait<MortonType::kMorton32>::CodeT> mcodes;
-    MortonTrait<MortonType::kMorton32>::Setup msetup = MortonTrait<MortonType::kMorton32>::Init(scene_aabb.Download());
+    CudaBuffer<typename MortonTrait<M>::CodeT> mcodes;
+    typename MortonTrait<M>::Setup msetup = MortonTrait<M>::Init(scene_aabb.Download());
     mcodes.Allocate(bvh.tri_count);
     timer.reset();
-    CalculateMortonsKernel<MortonType::kMorton32>
+    CalculateMortonsKernel<M>
         <<<block_count, kBvhBuildThreadsPerBlock>>>(bvh.tri_count, msetup, aabbs.Data(), mcodes.Data());
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    params.construction_stats.kernel_time += timer.elapsed_ns();
-    std::vector<MortonTrait<MortonType::kMorton32>::CodeT> h_mcodes;
-    mcodes.Download(h_mcodes);
+    auto elapsed_ns = timer.elapsed_ns();
+    params.construction_stats.kernel_time += elapsed_ns;
+    params.construction_stats.morton_construction_time = elapsed_ns;
+    // std::vector<typename MortonTrait<M>::CodeT> h_mcodes;
+    // mcodes.Download(h_mcodes);
 
     // Sort Morton codes
-    thrust::device_ptr<MortonTrait<MortonType::kMorton32>::CodeT> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
+    thrust::device_ptr<typename MortonTrait<M>::CodeT> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
     timer.reset();
     thrust::stable_sort_by_key(d_mcodes, d_mcodes + bvh.tri_count, thrustp_tri_idxs);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
-    params.construction_stats.kernel_time += timer.elapsed_ns();
-    mcodes.Download(h_mcodes);
+    elapsed_ns = timer.elapsed_ns();
+    params.construction_stats.kernel_time += elapsed_ns;
+    params.construction_stats.morton_sort_time = elapsed_ns;
+    // mcodes.Download(h_mcodes);
 
     // Main while loop
     CudaBuffer<int32_t> node_idxs;       // Cin (indices)
@@ -274,7 +275,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>
                                                                              radius);
         CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
-        auto elapsed_ns = timer.elapsed_ns();
+        elapsed_ns = timer.elapsed_ns();
         params.construction_stats.nn_search_time += elapsed_ns;
         params.construction_stats.kernel_time += elapsed_ns;
 
@@ -330,15 +331,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>
     cudaMemcpy(bvh.root, node_idxs.Data() + 0, sizeof(*bvh.root), cudaMemcpyDeviceToDevice);
     params.construction_stats.merge_and_compact_time += timer.elapsed_ns();
 
-    // TODO: Collapse leaves
-}
-
-template <>
-void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var1>(
-    const GpuBuildParams& params, GpuBvhView<BoundingVolumeType::kAabb> bvh) {
-    printf("Building PLOC + EMC\n");
-    // TODO
-    printf("Building not implemented yet!\n");
+    // TODO: Collapse leaves (optional)
 }
 
 template <>
@@ -347,6 +340,7 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton32>
     printf("Building PLOC + SOBB\n");
     // TODO
     printf("Building not implemented yet!\n");
+    assert(false);
 }
 
 template <>
@@ -355,6 +349,15 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var1
     printf("Building PLOC + EMC + SOBB\n");
     // TODO
     printf("Building not implemented yet!\n");
+    assert(false);
 }
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>(
+    const GpuBuildParams&, GpuBvhView<BoundingVolumeType::kAabb>);
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var1>(
+    const GpuBuildParams&, GpuBvhView<BoundingVolumeType::kAabb>);
+// template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton32>(
+//     const GpuBuildParams&, GpuBvhView<BoundingVolumeType::kSobb>);
+// template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var1>(
+//     const GpuBuildParams&, GpuBvhView<BoundingVolumeType::kSobb>);
 
 }  // namespace diplodocus::cuda_kernels

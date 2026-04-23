@@ -20,7 +20,8 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
 
     // Outer while loop
     int max_depth = trace_ctx.render_config.max_depth;
-    while (!LessAll(throughput, Splat(0.01f))) {
+    // while (!LessAll(throughput, Splat(0.01f))) {
+    while (ray_ctx.depth < max_depth) {
         GpuRayHit ray_hit;
         bool hit = trace_ctx.accel.Intersect(ray_ctx.rt_stats, scene, ray_ctx.ray, ray_hit, false);
 

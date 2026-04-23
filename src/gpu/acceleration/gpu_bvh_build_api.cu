@@ -52,17 +52,14 @@ __global__ void CalculateAabbsKernel(GpuSceneView scene, int tri_count, GpuAabb*
     aabbs[idx].max = Fmax(scene.tri_v0_pos[idx], Fmax(scene.tri_v1_pos[idx], scene.tri_v2_pos[idx]));
 }
 
-__global__ void CalculateMortonsKernel(int tri_count, GpuAabb* aabbs, GpuAabb* scene_aabb, uint32_t* mcodes) {
+template <MortonType M>
+__global__ void CalculateMortonsKernel(int tri_count, typename MortonTrait<M>::Setup setup, GpuAabb* aabbs,
+                                       typename MortonTrait<M>::CodeT* mcodes) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= tri_count) return;
 
     float3 centroid = (aabbs[idx].min + aabbs[idx].max) * 0.5f;
-    float3 scene_size = scene_aabb->max - scene_aabb->min;
-    float3 normalized_centroid;
-    normalized_centroid.x = scene_size.x > kEpsilon ? (centroid.x - scene_aabb->min.x) / scene_size.x : 0.5f;
-    normalized_centroid.y = scene_size.y > kEpsilon ? (centroid.y - scene_aabb->min.y) / scene_size.y : 0.5f;
-    normalized_centroid.z = scene_size.z > kEpsilon ? (centroid.z - scene_aabb->min.z) / scene_size.z : 0.5f;
-    mcodes[idx] = Morton30(normalized_centroid);
+    mcodes[idx] = MortonTrait<M>::Encode(centroid, setup);
 }
 
 __global__ void InitLeavesKernel(int32_t tri_count, GpuBvhNode<BoundingVolumeType::kAabb>* nodes, GpuAabb* aabbs,
@@ -204,22 +201,27 @@ void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Morton codes
-    CudaBuffer<uint32_t> mcodes;
+    static_assert(cuda::std::is_same_v<MortonTrait<MortonType::kMorton32>::CodeT, uint32_t>);
+    CudaBuffer<MortonTrait<MortonType::kMorton32>::CodeT> mcodes;
+    MortonTrait<MortonType::kMorton32>::Setup msetup = MortonTrait<MortonType::kMorton32>::Init(scene_aabb.Download());
     mcodes.Allocate(bvh.tri_count);
     timer.reset();
-    CalculateMortonsKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(bvh.tri_count, aabbs.Data(), scene_aabb.Data(),
-                                                                      mcodes.Data());
+    CalculateMortonsKernel<MortonType::kMorton32>
+        <<<block_count, kBvhBuildThreadsPerBlock>>>(bvh.tri_count, msetup, aabbs.Data(), mcodes.Data());
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
+    std::vector<MortonTrait<MortonType::kMorton32>::CodeT> h_mcodes;
+    mcodes.Download(h_mcodes);
 
     // Sort Morton codes
-    thrust::device_ptr<uint32_t> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
+    thrust::device_ptr<MortonTrait<MortonType::kMorton32>::CodeT> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
     timer.reset();
     thrust::stable_sort_by_key(d_mcodes, d_mcodes + bvh.tri_count, thrustp_tri_idxs);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
+    mcodes.Download(h_mcodes);
 
     // Main while loop
     CudaBuffer<int32_t> node_idxs;       // Cin (indices)

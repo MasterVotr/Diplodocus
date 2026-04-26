@@ -34,8 +34,8 @@ HDI GpuAabb MergeAabb(const GpuAabb& a, const GpuAabb& b) {
     };
 }
 
-struct ExpandAabb {
-    HD GpuAabb operator()(const GpuAabb& a, const GpuAabb& b) const { return MergeAabb(a, b); }
+struct MergeAabbFunctor {
+    HDI GpuAabb operator()(const GpuAabb& a, const GpuAabb& b) const { return MergeAabb(a, b); }
 };
 
 }  // namespace diplodocus::cuda_kernels

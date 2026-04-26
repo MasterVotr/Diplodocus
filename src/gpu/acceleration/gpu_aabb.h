@@ -2,8 +2,6 @@
 
 #include <vector_types.h>
 
-#include "gpu/cuda_math.h"
-
 namespace diplodocus::cuda_kernels {
 
 struct GpuAabb {

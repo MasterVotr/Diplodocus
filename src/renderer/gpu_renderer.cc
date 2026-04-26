@@ -11,6 +11,7 @@
 #include "gpu/acceleration/gpu_acceleration_structure.h"
 #include "gpu/acceleration/gpu_bvh_build_api.h"
 #include "gpu/acceleration/gpu_intersection.h"
+#include "gpu/acceleration/gpu_sobb_ops.h"
 #include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/config/gpu_config_bridge.h"
 #include "gpu/config/gpu_render_config.h"
@@ -28,8 +29,8 @@ namespace diplodocus {
 
 namespace {
 
-void BvhStatsCalculator(Stats& stats,
-                        const std::vector<cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>>& nodes,
+template <cuda_kernels::BoundingVolumeType BV>
+void BvhStatsCalculator(Stats& stats, const std::vector<cuda_kernels::GpuBvhNode<BV>>& nodes,
                         const std::vector<int32_t>& tri_idxs, int32_t root) {
     // Compute node counts
     int32_t stack[64];
@@ -37,7 +38,7 @@ void BvhStatsCalculator(Stats& stats,
     stack[stack_top] = root;
 
     while (stack_top != -1) {
-        const cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>& node = nodes[stack[stack_top--]];
+        const cuda_kernels::GpuBvhNode<BV>& node = nodes[stack[stack_top--]];
         stats.construction_stats.node_count++;
 
         // Leaf node
@@ -57,23 +58,35 @@ void BvhStatsCalculator(Stats& stats,
 
     // Compute memory consumption
     stats.construction_stats.memory_consumption =
-        nodes.size() * sizeof(cuda_kernels::GpuBvhNode<cuda_kernels::BoundingVolumeType::kAabb>) +
-        tri_idxs.size() * sizeof(int32_t) + sizeof(root);
+        nodes.size() * sizeof(cuda_kernels::GpuBvhNode<BV>) + tri_idxs.size() * sizeof(int32_t) + sizeof(root);
 
     // Compute cost
     float internal_nodes_sa{0.0f};
     float leaf_nodes_sa{0.0f};
     std::for_each(nodes.begin(), nodes.end(), [&](const auto& node) {
-        float sa = cuda_kernels::CalculateAabbSurfaceArea(node.bounds);
+        float sa = 0;
+        if constexpr (BV == cuda_kernels::BoundingVolumeType::kAabb) {
+            sa = cuda_kernels::CalculateAabbSurfaceArea(node.bounds);
+        } else if constexpr (BV == cuda_kernels::BoundingVolumeType::kSobb) {
+            sa = cuda_kernels::CalculateSobbSurfaceArea(node.bounds);
+        }
         if (node.is_leaf)
             leaf_nodes_sa += sa * 1;  // 1 triangle per leaf
         else
             internal_nodes_sa += sa;
     });
 
-    float root_sa = cuda_kernels::CalculateAabbSurfaceArea(nodes[root].bounds);
-    stats.construction_stats.bvh_cost =
-        (kTraversalCost * internal_nodes_sa + kIntersectionCost * leaf_nodes_sa) / root_sa;
+    float root_sa;
+    if constexpr (BV == cuda_kernels::BoundingVolumeType::kAabb) {
+        root_sa = cuda_kernels::CalculateAabbSurfaceArea(nodes[root].bounds);
+        stats.construction_stats.bvh_cost =
+            (kAabbTraversalCost * internal_nodes_sa + kIntersectionCost * leaf_nodes_sa) / root_sa;
+    } else if constexpr (BV == cuda_kernels::BoundingVolumeType::kSobb) {
+        root_sa = cuda_kernels::CalculateSobbSurfaceArea(nodes[root].bounds);
+        stats.construction_stats.bvh_cost =
+            (kSobbTraversalCost * internal_nodes_sa + kIntersectionCost * leaf_nodes_sa) / root_sa;
+    }
+    Logger::debug("BVH root surface area = {}", root_sa);
 }
 
 template <cuda_kernels::BoundingVolumeType BV>
@@ -88,7 +101,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     int tri_count = gpu_scene.tri_cnt;
     int node_count = 2 * tri_count - 1;
     cuda_kernels::GpuBvh<BV> gpu_bvh(node_count, tri_count);
-    cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh.GetView());
+    cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh);
     stats.construction_stats.build_time = build_t.elapsed_ms();
 
     // Download bvh to host for debuging
@@ -96,9 +109,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     std::vector<int32_t> h_gpu_bvh_tri_idxs;
     int32_t h_gpu_bvh_root;
     gpu_bvh.Download(h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs, h_gpu_bvh_root);
-    if constexpr (BV == cuda_kernels::BoundingVolumeType::kAabb) {
-        BvhStatsCalculator(stats, h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs, h_gpu_bvh_root);
-    }
+    BvhStatsCalculator<BV>(stats, h_gpu_bvh_nodes, h_gpu_bvh_tri_idxs, h_gpu_bvh_root);
 
     // Create trace context
     cuda_kernels::BvhAcceleration<BV> gpu_accel{gpu_bvh.GetView()};

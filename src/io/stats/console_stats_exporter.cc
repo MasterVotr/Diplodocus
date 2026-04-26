@@ -37,6 +37,7 @@ void ConsoleStatsExporter::ExportConstructionStats(const ConstructionStats& cons
     PrintLnFmt(std::cout, " Match and classify time:  {:.5} ms", construction_stats.match_and_classify_time / 1e6);
     PrintLnFmt(std::cout, " Prefix scan time:         {:.5} ms", construction_stats.prefix_scan_time / 1e6);
     PrintLnFmt(std::cout, " Merge and compact time:   {:.5} ms", construction_stats.merge_and_compact_time / 1e6);
+    PrintLnFmt(std::cout, " SOBB refit time:          {:.5} ms", construction_stats.sobb_refit_time / 1e6);
     PrintLnFmt(std::cout, " Kernel time:              {:.5} ms", construction_stats.kernel_time / 1e6);
     PrintLnFmt(std::cout, " Node count:               {}", construction_stats.node_count);
     PrintLnFmt(std::cout, " Inner node count:         {}", construction_stats.inner_node_count);

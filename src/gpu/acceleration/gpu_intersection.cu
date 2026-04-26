@@ -4,6 +4,7 @@
 #include "gpu/acceleration/gpu_aabb_ops.h"
 #include "gpu/acceleration/gpu_acceleration_structure.h"
 #include "gpu/acceleration/gpu_intersection.h"
+#include "gpu/acceleration/gpu_sobb_ops.h"
 #include "gpu/config/gpu_acceleration_structure_config.h"
 #include "gpu/cuda_math.h"
 #include "gpu/scene/gpu_ray.h"
@@ -83,10 +84,9 @@ D bool NoAcceleration::IntersectAny(RaytracingStats& rt_stats, const GpuSceneVie
     return false;
 }
 
-template <>
-D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene,
-                                                             const GpuRay& ray, GpuRayHit& ray_hit,
-                                                             bool backface_culling) const {
+template <BoundingVolumeType BV>
+D bool BvhAcceleration<BV>::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene, const GpuRay& ray,
+                                      GpuRayHit& ray_hit, bool backface_culling) const {
     rt_stats.query_count++;
     bool hit = false;
     float t_hit = ray.t_max;
@@ -98,7 +98,7 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats& rt
     stack[stack_top] = *accel.root;
 
     while (stack_top != -1) {
-        const GpuBvhNode<BoundingVolumeType::kAabb>& node = accel.nodes[stack[stack_top]];
+        const GpuBvhNode<BV>& node = accel.nodes[stack[stack_top]];
         stack_top--;
 
         // Leaf node
@@ -120,13 +120,22 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats& rt
 
         // Internal node
         int32_t left_child_idx = node.left;
-        const GpuBvhNode<BoundingVolumeType::kAabb>& left_child = accel.nodes[left_child_idx];
+        const GpuBvhNode<BV>& left_child = accel.nodes[left_child_idx];
         int32_t right_child_idx = node.right;
-        const GpuBvhNode<BoundingVolumeType::kAabb>& right_child = accel.nodes[right_child_idx];
+        const GpuBvhNode<BV>& right_child = accel.nodes[right_child_idx];
 
+        // Boulding volume intersections
         float left_t_min, left_t_max, right_t_min, right_t_max;
-        bool left_hit = IntersectRayAabb(ray, left_child.bounds, left_t_min, left_t_max);
-        bool right_hit = IntersectRayAabb(ray, right_child.bounds, right_t_min, right_t_max);
+        bool left_hit, right_hit;
+        if constexpr (BV == BoundingVolumeType::kAabb) {
+            left_hit = IntersectRayAabb(ray, left_child.bounds, left_t_min, left_t_max);
+            right_hit = IntersectRayAabb(ray, right_child.bounds, right_t_min, right_t_max);
+
+        } else if constexpr (BV == BoundingVolumeType::kSobb) {
+            left_hit = IntersectRaySobb(ray, left_child.bounds, left_t_min, left_t_max);
+            right_hit = IntersectRaySobb(ray, right_child.bounds, right_t_min, right_t_max);
+        }
+
         rt_stats.traversal_count += 2;
 
         if (left_t_min > t_hit || left_t_max <= kEpsilon) {
@@ -173,16 +182,16 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats& rt
     return true;
 }
 
-template <>
-D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene,
-                                                                const GpuRay& ray, bool backface_culling) const {
+template <BoundingVolumeType BV>
+D bool BvhAcceleration<BV>::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene, const GpuRay& ray,
+                                         bool backface_culling) const {
     rt_stats.query_count++;
     int32_t stack[64];
     int32_t stack_top = 0;
     stack[stack_top] = *accel.root;
 
     while (stack_top != -1) {
-        const GpuBvhNode<BoundingVolumeType::kAabb>& node = accel.nodes[stack[stack_top--]];
+        const GpuBvhNode<BV>& node = accel.nodes[stack[stack_top--]];
 
         // Leaf node
         if (node.is_leaf) {
@@ -199,16 +208,27 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(RaytracingStats&
 
         // Internal node
         int32_t left_child_idx = node.left;
-        const GpuBvhNode<BoundingVolumeType::kAabb>& left_child = accel.nodes[left_child_idx];
+        const GpuBvhNode<BV>& left_child = accel.nodes[left_child_idx];
         int32_t right_child_idx = node.right;
-        const GpuBvhNode<BoundingVolumeType::kAabb>& right_child = accel.nodes[right_child_idx];
+        const GpuBvhNode<BV>& right_child = accel.nodes[right_child_idx];
 
-        float t_min, t_max;
-        if (IntersectRayAabb(ray, left_child.bounds, t_min, t_max) && t_max > kEpsilon) {
+        // Boulding volume intersections
+        float left_t_min, left_t_max, right_t_min, right_t_max;
+        bool left_hit, right_hit;
+        if constexpr (BV == BoundingVolumeType::kAabb) {
+            left_hit = IntersectRayAabb(ray, left_child.bounds, left_t_min, left_t_max);
+            right_hit = IntersectRayAabb(ray, right_child.bounds, right_t_min, right_t_max);
+
+        } else if constexpr (BV == BoundingVolumeType::kSobb) {
+            left_hit = IntersectRaySobb(ray, left_child.bounds, left_t_min, left_t_max);
+            right_hit = IntersectRaySobb(ray, right_child.bounds, right_t_min, right_t_max);
+        }
+
+        if (left_hit && left_t_max > kEpsilon) {
             rt_stats.traversal_count++;
             stack[++stack_top] = left_child_idx;
         }
-        if (IntersectRayAabb(ray, right_child.bounds, t_min, t_max) && t_max > kEpsilon) {
+        if (right_hit && right_t_max > kEpsilon) {
             rt_stats.traversal_count++;
             stack[++stack_top] = right_child_idx;
         }
@@ -217,21 +237,14 @@ D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(RaytracingStats&
     return false;
 }
 
-template <>
-D bool BvhAcceleration<BoundingVolumeType::kSobb>::Intersect(RaytracingStats& rt_stats, const GpuSceneView& scene,
-                                                             const GpuRay& ray, GpuRayHit& ray_hit,
-                                                             bool backface_culling) const {
-    rt_stats.query_count++;
-    printf("BvhAcceleration::kSobb: Intersect() not implemented yet!\n");
-    return false;
-}
-
-template <>
-D bool BvhAcceleration<BoundingVolumeType::kSobb>::IntersectAny(RaytracingStats& rt_stats, const GpuSceneView& scene,
-                                                                const GpuRay& ray, bool backface_culling) const {
-    rt_stats.query_count++;
-    printf("BvhAcceleration::kSobb: IntersectAny() not implemented yet!\n");
-    return false;
-}
+// Explicit symbol emission
+template D bool BvhAcceleration<BoundingVolumeType::kAabb>::Intersect(RaytracingStats&, const GpuSceneView&,
+                                                                      const GpuRay&, GpuRayHit&, bool) const;
+template D bool BvhAcceleration<BoundingVolumeType::kSobb>::Intersect(RaytracingStats&, const GpuSceneView&,
+                                                                      const GpuRay&, GpuRayHit&, bool) const;
+template D bool BvhAcceleration<BoundingVolumeType::kAabb>::IntersectAny(RaytracingStats&, const GpuSceneView&,
+                                                                         const GpuRay&, bool) const;
+template D bool BvhAcceleration<BoundingVolumeType::kSobb>::IntersectAny(RaytracingStats&, const GpuSceneView&,
+                                                                         const GpuRay&, bool) const;
 
 }  // namespace diplodocus::cuda_kernels

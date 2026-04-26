@@ -46,30 +46,29 @@ template <BoundingVolumeType BV>
 class GpuBvh {
    public:
     GpuBvh(int node_count, int tri_count) {
-        nodes_.Allocate(node_count);
-        tri_idxs_.Allocate(tri_count);
-        root_.Allocate();
+        nodes.Allocate(node_count);
+        tri_idxs.Allocate(tri_count);
+        root.Allocate();
     }
     GpuBvh(const GpuBvh&) = delete;
     GpuBvh& operator=(const GpuBvh&) = delete;
 
     GpuBvhView<BV> GetView() {
         return GpuBvhView<BV>{
-            nodes_.Data(), static_cast<int>(nodes_.Size()), tri_idxs_.Data(), static_cast<int>(tri_idxs_.Size()),
-            root_.Data(),
+            nodes.Data(), static_cast<int>(nodes.Size()), tri_idxs.Data(), static_cast<int>(tri_idxs.Size()),
+            root.Data(),
         };
     }
     void Download(std::vector<GpuBvhNode<BV>>& nodes_cpu_dst, std::vector<int32_t>& tri_idxs_cpu_dst,
-                  int32_t& root) const {
-        nodes_.Download(nodes_cpu_dst);
-        tri_idxs_.Download(tri_idxs_cpu_dst);
-        root = root_.Download();
+                  int32_t& root_cpu_dst) const {
+        nodes.Download(nodes_cpu_dst);
+        tri_idxs.Download(tri_idxs_cpu_dst);
+        root_cpu_dst = root.Download();
     }
 
-   private:
-    CudaBuffer<GpuBvhNode<BV>> nodes_;
-    CudaBuffer<int32_t> tri_idxs_;
-    CudaValue<int32_t> root_;
+    CudaBuffer<GpuBvhNode<BV>> nodes;
+    CudaBuffer<int32_t> tri_idxs;
+    CudaValue<int32_t> root;
 };
 
 static_assert(sizeof(GpuBvhNode<BoundingVolumeType::kAabb>) == 40, "GpuBvhNode<kAabb>: unexpected sizeof()");

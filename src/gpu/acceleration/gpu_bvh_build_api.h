@@ -14,10 +14,10 @@ struct GpuBuildParams {
 };
 
 template <BoundingVolumeType BV, MortonType M>
-void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvhView<BV> bvh);
+void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh);
 
 template <BoundingVolumeType BV>
-void LaunchBuildBvhKernels(const GpuBuildParams& params, GpuBvhView<BV> bvh) {
+void LaunchBuildBvhKernels(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     switch (params.accel_config.morton_type) {
         case MortonType::kMorton32:
             LaunchBuildBvhKernelsImpl<BV, MortonType::kMorton32>(params, bvh);

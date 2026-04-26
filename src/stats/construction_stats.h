@@ -5,7 +5,8 @@
 namespace diplodocus {
 
 constexpr int kIntersectionCost = 2;
-constexpr int kTraversalCost = 3;
+constexpr int kAabbTraversalCost = 3;
+constexpr float kSobbTraversalCost = 4.5f;
 
 struct ConstructionStats {
     float build_time = 0.0;
@@ -17,6 +18,7 @@ struct ConstructionStats {
     float match_and_classify_time = 0.0f;
     float prefix_scan_time = 0.0f;
     float merge_and_compact_time = 0.0f;
+    float sobb_refit_time = 0.0f;
     float kernel_time = 0.0f;
     int64_t node_count = 0;
     int64_t inner_node_count = 0;

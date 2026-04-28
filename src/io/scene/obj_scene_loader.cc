@@ -188,12 +188,11 @@ bool ObjSceneLoader::LoadMetadata(std::filesystem::path metadata_file_path, Scen
 std::optional<Scene> ObjSceneLoader::Load(const SceneLoadConfig& config) const {
     Logger::info("ObjSceneLoader: Loading {}...", config.name);
     std::filesystem::path basepath = config.dirpath;
-    basepath /= config.name;
 
-    std::filesystem::path metadata_file_path = basepath;
+    std::filesystem::path metadata_file_path = basepath / config.meta_data;
     metadata_file_path += ".meta";
 
-    std::filesystem::path obj_file_path = basepath;
+    std::filesystem::path obj_file_path = basepath / config.name;
     obj_file_path += ".obj";
 
     Scene scene;

@@ -6,7 +6,6 @@
 
 namespace diplodocus::cuda_kernels {
 
-void HelloCunda();
 void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 color);
 // void LaunchRaytracingKernel(const GpuTraceContext& trace_ctx);
 // void LaunchPathtracingKernel(const GpuTraceContext& trace_ctx);

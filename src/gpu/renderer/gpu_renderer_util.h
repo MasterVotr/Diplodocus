@@ -116,16 +116,16 @@ DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceC
 
 DI float3 Reflect(const GpuRay& ray, const GpuRayHit& ray_hit) {
     float3 v = -ray.dir;
-    float3 refl_dir = -v + 2.0f * Dot(v, ray_hit.normal) * ray_hit.normal;
+    float3 refl_dir = -v + 2.0f * Dot(v, ray_hit.geom_normal) * ray_hit.geom_normal;
     return refl_dir;
 }
 
 DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float r_ior, bool& tir) {
     float3 v = -ray.dir;
-    float3 n = ray_hit.normal;
+    float3 n = ray_hit.geom_normal;
     float eta = ior;
 
-    float cos_i = Dot(v, ray_hit.normal);
+    float cos_i = Dot(v, ray_hit.geom_normal);
 
     if (cos_i < 0.0f) {
         // Flip if inside the object
@@ -134,8 +134,8 @@ DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float 
         n = -n;
     }
 
-    float sin2_i = Fmax(0.0f, 1.0f - (cos_i * cos_i));
-    float sin2_t = sin2_i / (eta * eta);
+    float sin2_i = Fmax(0.0f, 1.0f - Sqr(cos_i));
+    float sin2_t = sin2_i / Sqr(eta);
 
     // TIR
     if (sin2_t >= 1.0f) {
@@ -144,14 +144,14 @@ DI float3 Refract(const GpuRay& ray, const GpuRayHit& ray_hit, float ior, float 
     }
     tir = false;
 
-    float cos_t = Sqrt(1.0f - sin2_t);
+    float cos_t = SafeSqrt(1.0f - sin2_t);
 
     float3 refr_dir = -v / eta + (cos_i / eta - cos_t) * n;
     return refr_dir;
 }
 
 DI float SchlickFresnel(const GpuRay& ray, const GpuRayHit& ray_hit, float ior) {
-    float cos_i = Fmax(0.0f, Dot(-ray.dir, ray_hit.normal));
+    float cos_i = Clamp(Dot(-ray.dir, ray_hit.geom_normal), 0.0f, 1.0f);
     float eta_i = 1.0f;
     float eta_t = ior;
     float r0 = (eta_i - eta_t) / (eta_i + eta_t);

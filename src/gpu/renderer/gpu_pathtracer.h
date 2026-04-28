@@ -80,7 +80,7 @@ D float3 TracePath(GpuTraceContext<Acceleration>& trace_ctx, GpuRayContext ray_c
             ray_ctx.ray = {refr_origin, refr_dir, ray_ctx.ray.t_max};
             if (tir) {
                 // If TIR happens -> force full reflection
-                throughput = throughput * kt;
+                throughput = throughput * ks;
             } else {
                 float prob_refr = 1.0f - prob_refl;
                 throughput = throughput * kt / Fmax(kEpsilon, prob_refr);

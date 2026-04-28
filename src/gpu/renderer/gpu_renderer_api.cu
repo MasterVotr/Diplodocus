@@ -35,8 +35,6 @@ struct MergeRaytracingStatsFunctor {
     }
 };
 
-__global__ void HelloCundaKernel() { printf("Hello from Cunda!\n"); }
-
 __global__ void ClearFramebufferKernel(GpuFramebufferView framebuffer, float3 color) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int n = framebuffer.width * framebuffer.height;
@@ -70,20 +68,13 @@ __global__ void PathtracingKernel(GpuTraceContext<Acceleration> trace_ctx, Raytr
 
     // Gamma correction
     float gamma = trace_ctx.render_config.gamma_correction;
+    pixel_color = Fmax(pixel_color, Splat(0.0f));
     pixel_color = Pow(pixel_color, 1.0f / gamma);
 
     trace_ctx.framebuffer.data[idx] = pixel_color;
 }
 
 }  // namespace
-
-void HelloCunda() {
-    PrintCudaDiagnostics();
-    CheckGpuMemory();
-    HelloCundaKernel<<<1, 2>>>();
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
 
 void LaunchClearFramebufferKernel(const GpuFramebufferView& framebuffer, float3 color) {
     int n = framebuffer.width * framebuffer.height;

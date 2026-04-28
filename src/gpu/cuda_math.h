@@ -14,11 +14,13 @@ namespace diplodocus::cuda_kernels {
 constexpr float kEpsilon = 1e-6;
 constexpr float kInfinity = FLT_MAX;
 
-HDI float Pow(float b, int e) { return pow(b, e); }
-HDI float Pow(float b, float e) { return pow(b, e); }
-HDI float Sqrt(float a) { return sqrtf(a); }
 HDI float Fmin(float a, float b) { return fminf(a, b); }
 HDI float Fmax(float a, float b) { return fmaxf(a, b); }
+HDI float Pow(float b, int e) { return pow(b, e); }
+HDI float Pow(float b, float e) { return pow(b, e); }
+HDI float Sqr(float a) { return a * a; }
+HDI float Sqrt(float a) { return sqrtf(a); }
+HDI float SafeSqrt(float a) { return sqrtf(Fmax(0.0f, a)); }
 HDI float Abs(float a) { return fabsf(a); }
 HDI float Clamp(float a, float lo, float hi) { return Fmin(Fmax(a, lo), hi); }
 HDI float DivSafe(float a, float b, float eps = kEpsilon) { return b > eps ? a / b : kInfinity; }

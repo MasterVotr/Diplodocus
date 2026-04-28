@@ -20,6 +20,7 @@ struct SceneLoadConfig {
     SceneLoadFormat scene_load_format = SceneLoadFormat::kObj;
     std::filesystem::path dirpath = "res";
     std::string name = "CornellBox-Sphere";
+    std::string meta_data = "CornellBox-Sphere";
     bool triangulate = true;
 };
 

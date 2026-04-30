@@ -115,7 +115,7 @@ SceneLoadConfig JsonConfigLoader::LoadSceneLoadConfig(nlohmann::json json_config
     SetIfExists(json_config, "triangulate", scene_load_config.triangulate);
     SetIfExists(json_config, "scene_load_format", scene_load_config.scene_load_format);
 
-    // Load meta data filepath
+    // Load meta data filename
     auto it = json_config.find("meta_data");
     if (it == json_config.end() || it->is_null()) {
         scene_load_config.meta_data = scene_load_config.name;
@@ -130,6 +130,7 @@ StatsExportConfig JsonConfigLoader::LoadStatsExportConfig(nlohmann::json json_co
     StatsExportConfig stats_export_config;
 
     SetIfExists(json_config, "stats_export_format", stats_export_config.stats_export_format);
+    SetIfExists(json_config, "filepath", stats_export_config.filepath);
 
     return stats_export_config;
 }

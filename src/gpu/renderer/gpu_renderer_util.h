@@ -29,7 +29,8 @@ DI bool IsShadowed(RaytracingStats& rt_stats, const GpuTraceContext<Acceleration
 
     float3 shadow_dir = to_light / dist_to_light;
     float3 shadow_origin = RayOffsetOrigin(ray_hit.pos, ray_hit.epsilon, ray_hit.geom_normal, shadow_dir);
-    GpuRay shadow_ray{shadow_origin, shadow_dir, dist_to_light * (1.0f - ray_hit.epsilon)};
+    // GpuRay shadow_ray{shadow_origin, shadow_dir, dist_to_light * (1.0f - ray_hit.epsilon)};
+    GpuRay shadow_ray{shadow_origin, shadow_dir, dist_to_light - ray_hit.epsilon};
 
     return trace_ctx.accel.IntersectAny(rt_stats, trace_ctx.scene, shadow_ray, false);
 }
@@ -75,6 +76,7 @@ DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceC
     for (int al = 0; al < scene.al_cnt; al++) {
         int al_t = scene.al_tri_id[al];
         const auto& al_color = scene.al_color[al];
+        float al_power = scene.al_power[al];
 
         // If light hit dirrectly, just recturn light color
         if (al_t == ray_hit.triangle_id) return al_color;
@@ -94,7 +96,7 @@ DI float3 LocalIlluminationAreaLights(RaytracingStats& rt_stats, const GpuTraceC
             float w = (scene.al_surface_area[al] * Fmax(0.0f, Dot(scene.tri_geom_norm[al_t], (-d_l))) *
                        Fmax(0.0f, Dot(ray_hit.normal, d_l))) /
                       ((al_sample_cnt * dist_to_light * dist_to_light) + kEpsilon);
-            float3 pl_color = al_color * w;
+            float3 pl_color = al_color * Splat(al_power) * w;
 
             // Phong
             // Compute the light direction, view direction and reflection direction

@@ -47,6 +47,7 @@ struct GpuSceneView {
     const float3* al_color;
     const int* al_tri_id;
     const float* al_surface_area;
+    const float* al_power;
     const int al_cnt;
 };
 
@@ -89,6 +90,7 @@ class GpuScene {
     CudaBuffer<float3> al_color_;
     CudaBuffer<int> al_tri_id_;
     CudaBuffer<float> al_surface_area_;
+    CudaBuffer<float> al_power_;
 };
 
 }  // namespace cuda_kernels

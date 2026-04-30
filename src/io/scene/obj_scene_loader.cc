@@ -1,5 +1,7 @@
 #include "io/scene/obj_scene_loader.h"
 
+#include <algorithm>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -15,8 +17,26 @@
 #include "scene/triangle.h"
 #include "scene/vertex.h"
 #include "util/logger.h"
+#include "util/vec3.h"
 
 namespace diplodocus {
+
+namespace {
+
+float EmissivePower(const rapidobj::Float3& emission) { return std::max({emission[0], emission[1], emission[2]}); }
+
+Vec3 EmissiveColor(const rapidobj::Float3& emission, float power) {
+    if (power <= 0.0f) return {0.0f, 0.0f, 0.0f};
+    return {emission[0] / power, emission[1] / power, emission[2] / power};
+}
+
+Vec3 CalculateCameraUp(const Vec3& from, const Vec3& to, const Vec3& arbitrary_up) {
+    Vec3 forward = Normalize(from - to);
+    Vec3 right = Normalize(Cross(arbitrary_up, forward));
+    return Cross(forward, right);
+}
+
+}  // namespace
 
 bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) {
     Logger::debug("ObjSceneLoader: Loading obj from {}", obj_file_path.native());
@@ -100,7 +120,8 @@ bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) 
                 if (material.emission[0] != 0.0f || material.emission[1] != 0.0f || material.emission[2] != 0.0f) {
                     AreaLight al;
                     al.triangle_id = scene.Triangles().size() - 1;
-                    al.color = {material.emission[0], material.emission[1], material.emission[2]};
+                    al.power = EmissivePower(material.emission);
+                    al.color = EmissiveColor(material.emission, al.power);
                     al.surface_area = CalculateTriangleSurfaceArea(t);
                     scene.AddAreaLight(al);
                 }
@@ -184,6 +205,9 @@ bool ObjSceneLoader::LoadMetadata(std::filesystem::path metadata_file_path, Scen
         }
     }
 
+    camera.dir = Normalize(camera.dir);
+    camera.up = CalculateCameraUp(camera.pos, camera.pos + camera.dir, camera.up);
+
     return true;
 }
 
@@ -198,8 +222,13 @@ std::optional<Scene> ObjSceneLoader::Load(const SceneLoadConfig& config) const {
     obj_file_path += ".obj";
 
     Scene scene;
-    if (!LoadMetadata(metadata_file_path, scene)) return {};
-    if (!LoadObj(obj_file_path, scene)) return {};
+    try {
+        if (!LoadMetadata(metadata_file_path, scene)) return {};
+        if (!LoadObj(obj_file_path, scene)) return {};
+    } catch (std::exception e) {
+        Logger::error("ObjSceneLoder: Failed to parse {} and/or {}: {}", metadata_file_path.c_str(),
+                      obj_file_path.c_str(), e.what());
+    }
 
     return scene;
 }

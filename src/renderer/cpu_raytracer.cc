@@ -193,7 +193,7 @@ Vec3 CpuRaytracer::LocalIlluminationAreaLights(const TraceContext& trace_ctx, co
             float w = (area_light.surface_area * std::max(0.0f, Dot(light_triangle.geom_normal, (-d_l))) *
                        std::max(0.0f, Dot(ray_hit.normal, d_l))) /
                       ((sample_cnt * d * d) + kEpsilon);
-            light_sample.color = area_light.color * w;
+            light_sample.color = area_light.color * area_light.power * w;
 
             // Sample light contribution
             color += Phong(trace_ctx, ray_hit, light_sample);

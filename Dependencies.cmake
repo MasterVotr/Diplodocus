@@ -31,9 +31,9 @@ target_include_directories(imgui PUBLIC
 )
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-# tinyobjloader
-add_library(tinyobjloader INTERFACE)
-target_include_directories(tinyobjloader INTERFACE third-party/tinyobjloader)
+# rapidobj
+add_library(rapidobj INTERFACE)
+target_include_directories(rapidobj INTERFACE third-party/rapidobj)
 
 # json
 add_library(json INTERFACE)

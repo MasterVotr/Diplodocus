@@ -108,7 +108,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     imgui
     glad
     OpenGL::GL
-    tinyobjloader
+    rapidobj
     json
     tomlplusplus
 )

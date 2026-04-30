@@ -5,8 +5,9 @@
 #include <string>
 
 // Third party includes
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+// #define TINYOBJLOADER_IMPLEMENTATION
+// #include <tiny_obj_loader.h>
+#include <rapidobj.hpp>
 
 #include "scene/light.h"
 #include "scene/material.h"
@@ -19,25 +20,26 @@ namespace diplodocus {
 
 bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) {
     Logger::debug("ObjSceneLoader: Loading obj from {}", obj_file_path.native());
-    tinyobj::ObjReaderConfig reader_config;
-    reader_config.mtl_search_path = obj_file_path.parent_path().string();
 
-    tinyobj::ObjReader reader;
+    rapidobj::Result result =
+        rapidobj::ParseFile(obj_file_path, rapidobj::MaterialLibrary::Default(rapidobj::Load::Optional));
 
-    if (!reader.ParseFromFile(obj_file_path, reader_config)) {
-        Logger::error("ObjSceneLoader: Error reading file {} using tiny_obj, error: {}", obj_file_path.native(),
-                      reader.Error());
+    if (result.error) {
+        Logger::error("ObjSceneLoader: Error reading file {} using rapidobj, error:{} at line: {}: {}",
+                      obj_file_path.native(), result.error.code.message(), result.error.line_num, result.error.line);
         return false;
     }
 
-    if (!reader.Warning().empty()) {
-        Logger::error("ObjSceneLoader: Warning reading file {} using tiny_obj, warning: {}", obj_file_path.native(),
-                      reader.Warning());
+    bool success = rapidobj::Triangulate(result);
+
+    if (!success) {
+        Logger::error("ObjSceneLoader: Error triangulating file {} using rapidobj, error: {}", obj_file_path.native(),
+                      result.error.code.message());
     }
 
-    auto& attrib = reader.GetAttrib();
-    auto& shapes = reader.GetShapes();
-    auto& materials = reader.GetMaterials();
+    auto& attrib = result.attributes;
+    auto& shapes = result.shapes;
+    auto& materials = result.materials;
 
     // Reserve memory in scene
     size_t t_cnt = 0;
@@ -55,17 +57,17 @@ bool ObjSceneLoader::LoadObj(std::filesystem::path obj_file_path, Scene& scene) 
                 return false;
             }
             Triangle t;
-            tinyobj::index_t idx0 = shape.mesh.indices[3 * f + 0];
-            tinyobj::index_t idx1 = shape.mesh.indices[3 * f + 1];
-            tinyobj::index_t idx2 = shape.mesh.indices[3 * f + 2];
+            auto idx0 = shape.mesh.indices[3 * f + 0];
+            auto idx1 = shape.mesh.indices[3 * f + 1];
+            auto idx2 = shape.mesh.indices[3 * f + 2];
 
             // Vertex positions
-            t.v0.pos = {attrib.vertices[3 * idx0.vertex_index + 0], attrib.vertices[3 * idx0.vertex_index + 1],
-                        attrib.vertices[3 * idx0.vertex_index + 2]};
-            t.v1.pos = {attrib.vertices[3 * idx1.vertex_index + 0], attrib.vertices[3 * idx1.vertex_index + 1],
-                        attrib.vertices[3 * idx1.vertex_index + 2]};
-            t.v2.pos = {attrib.vertices[3 * idx2.vertex_index + 0], attrib.vertices[3 * idx2.vertex_index + 1],
-                        attrib.vertices[3 * idx2.vertex_index + 2]};
+            t.v0.pos = {attrib.positions[3 * idx0.position_index + 0], attrib.positions[3 * idx0.position_index + 1],
+                        attrib.positions[3 * idx0.position_index + 2]};
+            t.v1.pos = {attrib.positions[3 * idx1.position_index + 0], attrib.positions[3 * idx1.position_index + 1],
+                        attrib.positions[3 * idx1.position_index + 2]};
+            t.v2.pos = {attrib.positions[3 * idx2.position_index + 0], attrib.positions[3 * idx2.position_index + 1],
+                        attrib.positions[3 * idx2.position_index + 2]};
 
             // Check if `normal_index` is zero or positive. negative = no normal data
             if (idx0.normal_index >= 0 && idx1.normal_index >= 0 && idx2.normal_index >= 0) {

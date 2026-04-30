@@ -100,6 +100,6 @@ apply_build_type_flags(${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     diplodocus_gpu
-    tinyobjloader
+    rapidobj
     json
 )

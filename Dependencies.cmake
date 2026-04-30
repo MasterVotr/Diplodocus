@@ -2,9 +2,9 @@
 # DEPENDENCIES #
 ###############
 
-# tinyobjloader
-add_library(tinyobjloader INTERFACE)
-target_include_directories(tinyobjloader INTERFACE third-party/tinyobjloader)
+# rapidobj
+add_library(rapidobj INTERFACE)
+target_include_directories(rapidobj INTERFACE third-party/rapidobj)
 
 # json
 add_library(json INTERFACE)

@@ -11,7 +11,7 @@
 
 namespace diplodocus::cuda_kernels {
 
-constexpr float kEpsilon = 1e-6;
+constexpr float kEpsilon = 1e-10;
 constexpr float kInfinity = FLT_MAX;
 
 HDI float Fmin(float a, float b) { return fminf(a, b); }

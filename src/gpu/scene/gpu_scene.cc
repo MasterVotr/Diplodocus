@@ -74,15 +74,18 @@ GpuScene::GpuScene(const Scene& scene) {
     std::vector<float3> al_color(al_cnt);
     std::vector<int> al_tri_id(al_cnt);
     std::vector<float> al_surface_area(al_cnt);
+    std::vector<float> al_power(al_cnt);
     for (size_t i{0}; i < al_cnt; i++) {
         const auto& al = area_lights[i];
         al_color[i] = make_float3(al.color.x, al.color.y, al.color.z);
         al_tri_id[i] = al.triangle_id;
         al_surface_area[i] = al.surface_area;
+        al_power[i] = al.power;
     }
     al_color_.Upload(al_color);
     al_tri_id_.Upload(al_tri_id);
     al_surface_area_.Upload(al_surface_area);
+    al_power_.Upload(al_power);
 
     // Transfer point lights
     const auto& point_lights = scene.PointLights();
@@ -133,6 +136,7 @@ GpuSceneView GpuScene::GetView() const {
         al_color_.Data(),
         al_tri_id_.Data(),
         al_surface_area_.Data(),
+        al_power_.Data(),
         static_cast<int>(al_color_.Size()),
     };
 }

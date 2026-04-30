@@ -9,14 +9,14 @@ namespace diplodocus {
 struct PointLight {
     Vec3 pos;
     Vec3 color;
-    float power;
+    float power = 1.0f;
 };
 
 struct AreaLight {
     Vec3 color;
     int triangle_id;
     float surface_area;
-    float power;
+    float power = 1.0f;
 };
 
 }  // namespace diplodocus

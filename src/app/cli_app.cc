@@ -208,7 +208,7 @@ void CliApp::Run() {
 
     // Export stats
     auto stats_exporter = CreateStatsExporter(app_ctx_.config.stats_export_config);
-    stats_exporter->ExportOne(app_ctx_.config.stats_export_config, app_ctx_.stats);
+    stats_exporter->ExportOne(app_ctx_.config, app_ctx_.stats);
 }
 
 }  // namespace diplodocus

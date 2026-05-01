@@ -227,7 +227,7 @@ std::optional<Scene> ObjSceneLoader::Load(const SceneLoadConfig& config) const {
         if (!LoadObj(obj_file_path, scene)) return {};
     } catch (std::exception e) {
         Logger::error("ObjSceneLoder: Failed to parse {} and/or {}: {}", metadata_file_path.c_str(),
-                      obj_file_path.c_str(), e.what());
+                      obj_file_path.native(), e.what());
     }
 
     return scene;

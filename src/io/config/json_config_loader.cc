@@ -6,7 +6,6 @@
 
 // Third party includes
 #include <json.hpp>
-#include <type_traits>
 
 #include "config/acceleration_structure_config.h"
 #include "config/config.h"

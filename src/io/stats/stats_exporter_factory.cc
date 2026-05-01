@@ -5,7 +5,7 @@
 
 #include "config/stats_export_config.h"
 #include "io/stats/console_stats_exporter.h"
-// #include "io/stats/csv_stats_exporter.h"
+#include "io/stats/json_stats_exporter.h"
 
 namespace diplodocus {
 
@@ -13,8 +13,8 @@ std::unique_ptr<StatsExporter> CreateStatsExporter(const StatsExportConfig& stat
     switch (stats_export_config.stats_export_format) {
         case StatsExportFormat::kConsole:
             return std::make_unique<ConsoleStatsExporter>();
-        case StatsExportFormat::kCsv:
-            throw std::invalid_argument("CsvStatsExporter not implemented yet");
+        case StatsExportFormat::kJson:
+            return std::make_unique<JsonStatsExporter>();
         default:
             throw std::invalid_argument("Unknown StatExportFormat");
     }

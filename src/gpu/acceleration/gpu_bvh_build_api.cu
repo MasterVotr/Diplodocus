@@ -422,13 +422,13 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
 }
 
 // Explicit symbol emission
-template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton32>(
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kMorton64>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var1>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var2>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
-template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton32>(
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton64>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kSobb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var1>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kSobb>&);

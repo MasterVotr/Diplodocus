@@ -182,14 +182,16 @@ RenderResult GpuRenderer::StartRender(const RenderConfig& render_config,
     RenderResult render_result{RenderResult::kError};
     switch (acceleration_config.acceleration_structure_type) {
         case AccelerationStructureType::kPloc:
-        case AccelerationStructureType::kPlocEmc: {
+        case AccelerationStructureType::kPlocEmcVar1:
+        case AccelerationStructureType::kPlocEmcVar2: {
             render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kAabb>(
                 stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetView(), p00, qw, qh,
                 cam_pos, cam_far);
             break;
         }
         case AccelerationStructureType::kPlocSobb:
-        case AccelerationStructureType::kPlocEmcSobb: {
+        case AccelerationStructureType::kPlocEmcVar1Sobb:
+        case AccelerationStructureType::kPlocEmcVar2Sobb: {
             render_result = StartRenderImpl<cuda_kernels::BoundingVolumeType::kSobb>(
                 stats, gpu_scene.GetView(), gpu_build_params, gpu_render_config, gpu_framebuffer.GetView(), p00, qw, qh,
                 cam_pos, cam_far);

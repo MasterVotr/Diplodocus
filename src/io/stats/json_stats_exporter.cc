@@ -31,12 +31,16 @@ std::string_view ToString(AccelerationStructureType acceleration_structure_type)
             return "sbvh";
         case AccelerationStructureType::kPloc:
             return "ploc";
-        case AccelerationStructureType::kPlocEmc:
-            return "ploc_emc";
+        case AccelerationStructureType::kPlocEmcVar1:
+            return "ploc_emc1";
+        case AccelerationStructureType::kPlocEmcVar2:
+            return "ploc_emc2";
         case AccelerationStructureType::kPlocSobb:
             return "ploc_sobb";
-        case AccelerationStructureType::kPlocEmcSobb:
-            return "ploc_emc_sobb";
+        case AccelerationStructureType::kPlocEmcVar1Sobb:
+            return "ploc_emc1_sobb";
+        case AccelerationStructureType::kPlocEmcVar2Sobb:
+            return "ploc_emc2_sobb";
         default:
             return "unknown";
     }

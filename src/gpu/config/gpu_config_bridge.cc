@@ -33,8 +33,13 @@ GpuAccelerationStructureConfig BridgeAccelerationConfig(const AccelerationStruct
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kAabb;
             break;
         }
-        case AccelerationStructureType::kPlocEmc: {
+        case AccelerationStructureType::kPlocEmcVar1: {
             gpu_acceleration_config.morton_type = MortonType::kEmc64Var1;
+            gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kAabb;
+            break;
+        }
+        case AccelerationStructureType::kPlocEmcVar2: {
+            gpu_acceleration_config.morton_type = MortonType::kEmc64Var2;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kAabb;
             break;
         }
@@ -43,8 +48,13 @@ GpuAccelerationStructureConfig BridgeAccelerationConfig(const AccelerationStruct
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kSobb;
             break;
         }
-        case AccelerationStructureType::kPlocEmcSobb: {
+        case AccelerationStructureType::kPlocEmcVar1Sobb: {
             gpu_acceleration_config.morton_type = MortonType::kEmc64Var1;
+            gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kSobb;
+            break;
+        }
+        case AccelerationStructureType::kPlocEmcVar2Sobb: {
+            gpu_acceleration_config.morton_type = MortonType::kEmc64Var2;
             gpu_acceleration_config.bounding_volmue_type = BoundingVolumeType::kSobb;
             break;
         }

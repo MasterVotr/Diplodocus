@@ -413,9 +413,13 @@ template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::k
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var1>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kAabb, MortonType::kEmc64Var2>(
+    const GpuBuildParams&, GpuBvh<BoundingVolumeType::kAabb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kMorton32>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kSobb>&);
 template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var1>(
+    const GpuBuildParams&, GpuBvh<BoundingVolumeType::kSobb>&);
+template void LaunchBuildBvhKernelsImpl<BoundingVolumeType::kSobb, MortonType::kEmc64Var2>(
     const GpuBuildParams&, GpuBvh<BoundingVolumeType::kSobb>&);
 
 }  // namespace diplodocus::cuda_kernels

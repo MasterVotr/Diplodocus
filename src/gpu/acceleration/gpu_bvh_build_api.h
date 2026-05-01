@@ -19,8 +19,8 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh);
 template <BoundingVolumeType BV>
 void LaunchBuildBvhKernels(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     switch (params.accel_config.morton_type) {
-        case MortonType::kMorton32:
-            LaunchBuildBvhKernelsImpl<BV, MortonType::kMorton32>(params, bvh);
+        case MortonType::kMorton64:
+            LaunchBuildBvhKernelsImpl<BV, MortonType::kMorton64>(params, bvh);
             break;
         case MortonType::kEmc64Var1:
             LaunchBuildBvhKernelsImpl<BV, MortonType::kEmc64Var1>(params, bvh);

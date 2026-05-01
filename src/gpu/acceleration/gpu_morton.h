@@ -17,49 +17,10 @@ namespace diplodocus::cuda_kernels {
 template <MortonType M>
 class MortonTrait;
 
-template <>
-class MortonTrait<MortonType::kMorton32> {
-   public:
-    using CodeT = uint32_t;
-
-    struct Setup {
-        float3 scene_min;
-        float3 scene_size;
-    };
-
-    static Setup Init(const GpuAabb& scene_aabb) { return {scene_aabb.min, scene_aabb.max - scene_aabb.min}; }
-
-    static DI CodeT Encode(const GpuAabb& aabb, const Setup& setup) {
-        float3 centroid = (aabb.min + aabb.max) * 0.5f;
-        float3 v = centroid - setup.scene_min;
-        float3 nc;
-        nc.x = setup.scene_size.x > kEpsilon ? (v.x - setup.scene_min.x) / setup.scene_size.x : 0.5f;
-        nc.y = setup.scene_size.y > kEpsilon ? (v.y - setup.scene_min.y) / setup.scene_size.y : 0.5f;
-        nc.z = setup.scene_size.z > kEpsilon ? (v.z - setup.scene_min.z) / setup.scene_size.z : 0.5f;
-        float x = Clamp(nc.x * 1023, 0.0f, 1023.0f);
-        float y = Clamp(nc.y * 1023, 0.0f, 1023.0f);
-        float z = Clamp(nc.z * 1023, 0.0f, 1023.0f);
-        CodeT xx = ExpandBits(static_cast<CodeT>(x));
-        CodeT yy = ExpandBits(static_cast<CodeT>(y));
-        CodeT zz = ExpandBits(static_cast<CodeT>(z));
-        return xx << 2 | yy << 1 | zz;
-    }
-
-   private:
-    static DI CodeT ExpandBits(CodeT x) {
-        x &= 0x3ff;  // trim to 10 bits
-        x = (x | x << 16) & 0x30000ff;
-        x = (x | x << 8) & 0x300f00f;
-        x = (x | x << 4) & 0x30c30c3;
-        x = (x | x << 2) & 0x9249249;
-        return x;
-    }
-};
-
 // template <>
-// class MortonTrait<MortonType::kMorton64> {
+// class MortonTrait<MortonType::kMorton32> {
 //    public:
-//     using CodeT = uint64_t;
+//     using CodeT = uint32_t;
 //
 //     struct Setup {
 //         float3 scene_min;
@@ -70,13 +31,14 @@ class MortonTrait<MortonType::kMorton32> {
 //
 //     static DI CodeT Encode(const GpuAabb& aabb, const Setup& setup) {
 //         float3 centroid = (aabb.min + aabb.max) * 0.5f;
+//         float3 v = centroid - setup.scene_min;
 //         float3 nc;
-//         nc.x = setup.scene_size.x > kEpsilon ? (centroid.x - setup.scene_min.x) / setup.scene_size.x : 0.5f;
-//         nc.y = setup.scene_size.y > kEpsilon ? (centroid.y - setup.scene_min.y) / setup.scene_size.y : 0.5f;
-//         nc.z = setup.scene_size.z > kEpsilon ? (centroid.z - setup.scene_min.z) / setup.scene_size.z : 0.5f;
-//         float x = Clamp(nc.x * 2'097'151, 0.0f, 2'097'151.0f);
-//         float y = Clamp(nc.y * 2'097'151, 0.0f, 2'097'151.0f);
-//         float z = Clamp(nc.z * 2'097'151, 0.0f, 2'097'151.0f);
+//         nc.x = setup.scene_size.x > kEpsilon ? (v.x - setup.scene_min.x) / setup.scene_size.x : 0.5f;
+//         nc.y = setup.scene_size.y > kEpsilon ? (v.y - setup.scene_min.y) / setup.scene_size.y : 0.5f;
+//         nc.z = setup.scene_size.z > kEpsilon ? (v.z - setup.scene_min.z) / setup.scene_size.z : 0.5f;
+//         float x = Clamp(nc.x * 1023, 0.0f, 1023.0f);
+//         float y = Clamp(nc.y * 1023, 0.0f, 1023.0f);
+//         float z = Clamp(nc.z * 1023, 0.0f, 1023.0f);
 //         CodeT xx = ExpandBits(static_cast<CodeT>(x));
 //         CodeT yy = ExpandBits(static_cast<CodeT>(y));
 //         CodeT zz = ExpandBits(static_cast<CodeT>(z));
@@ -85,15 +47,53 @@ class MortonTrait<MortonType::kMorton32> {
 //
 //    private:
 //     static DI CodeT ExpandBits(CodeT x) {
-//         x &= 0x1fffff;  // trim to 21 bits
-//         x = (x | x << 32) & 0x1f00000000ffff;
-//         x = (x | x << 16) & 0x1f0000ff0000ff;
-//         x = (x | x << 8) & 0x100f00f00f00f00f;
-//         x = (x | x << 4) & 0x10c30c30c30c30c3;
-//         x = (x | x << 2) & 0x1249249249249249;
+//         x &= 0x3ff;  // trim to 10 bits
+//         x = (x | x << 16) & 0x30000ff;
+//         x = (x | x << 8) & 0x300f00f;
+//         x = (x | x << 4) & 0x30c30c3;
+//         x = (x | x << 2) & 0x9249249;
 //         return x;
 //     }
 // };
+
+template <>
+class MortonTrait<MortonType::kMorton64> {
+   public:
+    using CodeT = uint64_t;
+
+    struct Setup {
+        float3 scene_min;
+        float3 scene_size;
+    };
+
+    static Setup Init(const GpuAabb& scene_aabb) { return {scene_aabb.min, scene_aabb.max - scene_aabb.min}; }
+
+    static DI CodeT Encode(const GpuAabb& aabb, const Setup& setup) {
+        float3 centroid = (aabb.min + aabb.max) * 0.5f;
+        float3 nc;
+        nc.x = setup.scene_size.x > kEpsilon ? (centroid.x - setup.scene_min.x) / setup.scene_size.x : 0.5f;
+        nc.y = setup.scene_size.y > kEpsilon ? (centroid.y - setup.scene_min.y) / setup.scene_size.y : 0.5f;
+        nc.z = setup.scene_size.z > kEpsilon ? (centroid.z - setup.scene_min.z) / setup.scene_size.z : 0.5f;
+        float x = Clamp(nc.x * 2'097'151, 0.0f, 2'097'151.0f);
+        float y = Clamp(nc.y * 2'097'151, 0.0f, 2'097'151.0f);
+        float z = Clamp(nc.z * 2'097'151, 0.0f, 2'097'151.0f);
+        CodeT xx = ExpandBits(static_cast<CodeT>(x));
+        CodeT yy = ExpandBits(static_cast<CodeT>(y));
+        CodeT zz = ExpandBits(static_cast<CodeT>(z));
+        return xx << 2 | yy << 1 | zz;
+    }
+
+   private:
+    static DI CodeT ExpandBits(CodeT x) {
+        x &= 0x1fffff;  // trim to 21 bits
+        x = (x | x << 32) & 0x1f00000000ffff;
+        x = (x | x << 16) & 0x1f0000ff0000ff;
+        x = (x | x << 8) & 0x100f00f00f00f00f;
+        x = (x | x << 4) & 0x10c30c30c30c30c3;
+        x = (x | x << 2) & 0x1249249249249249;
+        return x;
+    }
+};
 
 template <>
 class MortonTrait<MortonType::kEmc64Var1> {

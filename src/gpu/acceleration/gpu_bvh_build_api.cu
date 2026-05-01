@@ -224,7 +224,7 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     const int node_count = bvh.nodes.Size();
 
     if (tri_count == 0) {
-        printf("BvhBuild: No triangles to build.\n");
+        printf("BvhBuild: No triangles to build bvh from.\n");
         return;
     }
 
@@ -234,25 +234,19 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     Timer timer;
 
     // Initialize triangle indexes
-    printf("BvhBuild: Initializing triangle indices...\n");
+    timer.reset();
     thrust::device_ptr<int32_t> thrustp_tri_idxs = thrust::device_pointer_cast(bvh.tri_idxs.Data());
     thrust::sequence(thrustp_tri_idxs, thrustp_tri_idxs + tri_count);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Triangle bboxes
-    printf("BvhBuild: Calculating triangle bounding volumes...\n");
     CudaBuffer<GpuAabb> aabbs;  // Cin (bounds)
     aabbs.Allocate(tri_count);
     timer.reset();
     CalculateAabbsKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(params.scene, tri_count, aabbs.Data());
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Scene bbox using cub::reduce
-    printf("BvhBuild: Calculating triangle bounding volumes...\n");
     CudaValue<GpuAabb> scene_aabb;
     scene_aabb.Allocate();
     void* d_tmp_storage = nullptr;
@@ -265,40 +259,30 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     cub::DeviceReduce::Reduce(d_tmp_storage, d_tmp_storage_bytes, aabbs.Data(), scene_aabb.Data(), tri_count,
                               MergeAabbFunctor(), empty_aabb);
     CUDA_CHECK(cudaFree(d_tmp_storage));
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     // Morton codes
-    printf("BvhBuild: Calculating triangle Morton codes...\n");
     CudaBuffer<typename MortonTrait<M>::CodeT> mcodes;
+    CUDA_CHECK(cudaDeviceSynchronize());
     typename MortonTrait<M>::Setup msetup = MortonTrait<M>::Init(scene_aabb.Download());
     mcodes.Allocate(tri_count);
     timer.reset();
     CalculateMortonsKernel<M>
         <<<block_count, kBvhBuildThreadsPerBlock>>>(tri_count, msetup, aabbs.Data(), mcodes.Data());
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     auto elapsed_ns = timer.elapsed_ns();
     params.construction_stats.kernel_time += elapsed_ns;
     params.construction_stats.morton_construction_time = elapsed_ns;
     // std::vector<typename MortonTrait<M>::CodeT> h_mcodes;
-    // mcodes.Download(h_mcodes);
 
     // Sort Morton codes
-    printf("BvhBuild: Sorting Morton codes...\n");
     thrust::device_ptr<typename MortonTrait<M>::CodeT> d_mcodes = thrust::device_pointer_cast(mcodes.Data());
     timer.reset();
     thrust::stable_sort_by_key(d_mcodes, d_mcodes + tri_count, thrustp_tri_idxs);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     elapsed_ns = timer.elapsed_ns();
     params.construction_stats.kernel_time += elapsed_ns;
     params.construction_stats.morton_sort_time = elapsed_ns;
-    // mcodes.Download(h_mcodes);
 
     // Main while loop
-    printf("BvhBuild: Beginning main PLOC loop...\n");
     CudaBuffer<GpuBvhNode<BoundingVolumeType::kAabb>> nodes;  // Working nodes
     CudaBuffer<int32_t> node_idxs;                            // Cin (indices)
     CudaBuffer<GpuAabb> aabbs_next;                           // Cout (bounds)
@@ -325,15 +309,11 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     thrust::device_ptr<GpuAabb> thrustp_aabbs_next(aabbs_next.Data());
     thrust::gather(thrustp_tri_idxs, thrustp_tri_idxs + tri_count, thrustp_aabbs, thrustp_aabbs_next);
     cuda::std::swap(aabbs, aabbs_next);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
 
     // Setup leaves on bvh
     timer.reset();
     InitLeavesKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(tri_count, nodes.Data(), aabbs.Data(),
                                                                 node_idxs.Data());
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
     params.construction_stats.kernel_time += timer.elapsed_ns();
 
     params.construction_stats.init_time = init_t.elapsed_ns();
@@ -342,15 +322,12 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     int current_n = tri_count;
     int base_node_offset = current_n;
     while (current_n > 1) {
-        // printf("BvhBuild::Ploc: while loop round start: current_n = %d\n", current_n);
         block_count = (current_n + kBvhBuildThreadsPerBlock - 1) / kBvhBuildThreadsPerBlock;
 
         // Nearest neighbor
         timer.reset();
         FindNearestNeighborKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(current_n, aabbs.Data(), nns.Data(),
                                                                              radius);
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
         elapsed_ns = timer.elapsed_ns();
         params.construction_stats.nn_search_time += elapsed_ns;
         params.construction_stats.kernel_time += elapsed_ns;
@@ -359,8 +336,6 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
         timer.reset();
         MatchAndClassifyKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(current_n, nns.Data(), valid_flags.Data(),
                                                                           leader_flags.Data());
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
         elapsed_ns = timer.elapsed_ns();
         params.construction_stats.match_and_classify_time += elapsed_ns;
         params.construction_stats.kernel_time += elapsed_ns;
@@ -371,7 +346,6 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
                                valid_offsets.Data());
         thrust::exclusive_scan(thrust::device, leader_flags.Data(), leader_flags.Data() + current_n,
                                leader_offsets.Data());
-        CUDA_CHECK(cudaGetLastError());
         CUDA_CHECK(cudaDeviceSynchronize());
         elapsed_ns = timer.elapsed_ns();
         params.construction_stats.prefix_scan_time += elapsed_ns;
@@ -388,8 +362,6 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
             current_n, aabbs.Data(), node_idxs.Data(), nns.Data(), valid_offsets.Data(), valid_flags.Data(),
             leader_offsets.Data(), leader_flags.Data(), nodes.Data(), base_node_offset, aabbs_next.Data(),
             node_idxs_next.Data());
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
         elapsed_ns = timer.elapsed_ns();
         params.construction_stats.merge_and_compact_time += elapsed_ns;
         params.construction_stats.kernel_time += elapsed_ns;
@@ -400,46 +372,38 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
         cuda::std::swap(node_idxs, node_idxs_next);
 
         current_n = valid_cnt;
-        // printf("BvhBuild::Ploc: while loop round results: valid_cnt = %d, merge_cnt = %d\n", valid_cnt, leader_cnt);
     }
 
-    // TODO: Collapse leaves (optional)
-
     timer.reset();
-    cudaMemcpy(bvh.root.Data(), node_idxs.Data() + 0, sizeof(*bvh.GetView().root), cudaMemcpyDeviceToDevice);
-    params.construction_stats.merge_and_compact_time += timer.elapsed_ns();
-
-    std::vector<GpuBvhNode<BoundingVolumeType::kAabb>> h_old_nodes;
-    nodes.Download(h_old_nodes);
+    CUDA_CHECK(
+        cudaMemcpy(bvh.root.Data(), node_idxs.Data() + 0, sizeof(*bvh.GetView().root), cudaMemcpyDeviceToDevice));
+    params.construction_stats.memcopy_time += timer.elapsed_ns();
 
     // SOBB refit
     if constexpr (BV == BoundingVolumeType::kAabb) {
         cuda::std::swap(bvh.nodes, nodes);
     } else if constexpr (BV == BoundingVolumeType::kSobb) {
-        printf("BvhBuild: Refitting AABBs to SOBBs...\n");
-        timer.reset();
+        Timer sobb_refit_t;
 
         // Preapare ready_childern flag and k-DOPs
+        timer.reset();
         CudaBuffer<int32_t> ready_children;
         ready_children.Allocate(node_count);
-        cudaMemset(ready_children.Data(), 0, ready_children.Size() * sizeof(int32_t));
+        CUDA_CHECK(cudaMemset(ready_children.Data(), 0, ready_children.Size() * sizeof(int32_t)));
         CudaBuffer<GpuDop> dops;
         dops.Allocate(node_count);
+        params.construction_stats.memcopy_time += timer.elapsed_ns();
 
         // Launch refitting kernel
+        timer.reset();
         block_count = (node_count + kBvhBuildThreadsPerBlock - 1) / kBvhBuildThreadsPerBlock;
         SobbRefitKernel<<<block_count, kBvhBuildThreadsPerBlock>>>(params.scene, tri_count, nodes.Data(),
                                                                    bvh.nodes.Data(), dops.Data(), bvh.tri_idxs.Data(),
                                                                    ready_children.Data());
-        CUDA_CHECK(cudaGetLastError());
-        CUDA_CHECK(cudaDeviceSynchronize());
-        elapsed_ns = timer.elapsed_ns();
-        params.construction_stats.kernel_time += elapsed_ns;
-        params.construction_stats.sobb_refit_time = elapsed_ns;
+        params.construction_stats.kernel_time += timer.elapsed_ns();
+        params.construction_stats.sobb_refit_time = sobb_refit_t.elapsed_ns();
     }
-
-    std::vector<GpuBvhNode<BV>> h_new_nodes;
-    bvh.nodes.Download(h_new_nodes);
+    CUDA_CHECK(cudaDeviceSynchronize());
 
     return;
 }

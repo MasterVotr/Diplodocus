@@ -20,5 +20,5 @@ int main(int argc, char** argv) {
     // Run app
     app.Run();
 
-    return 1;
+    return 0;
 }

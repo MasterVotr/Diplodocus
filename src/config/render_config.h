@@ -15,16 +15,16 @@ inline RendererType ParseEnum<RendererType>(std::string_view sv) {
 }
 
 struct RenderConfig {
-    RendererType renderer_type = RendererType::kCpu;
-    int width = 800;
-    int height = 600;
+    RendererType renderer_type = RendererType::kGpu;
+    int width = 1024;
+    int height = 768;
     Vec3 background_color = color::kBlack;
     bool backface_culling = false;
     int max_depth = 4;
-    int area_light_sample_cnt = 8;
-    int pixel_sample_cnt = 4;
+    int area_light_sample_cnt = 4;
+    int pixel_sample_cnt = 32;
     int seed = 42;
-    float gamma_correction = 1.0f;
+    float gamma_correction = 2.2f;
 };
 
 }  // namespace diplodocus

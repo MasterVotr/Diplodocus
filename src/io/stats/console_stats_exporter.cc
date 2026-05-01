@@ -8,8 +8,7 @@
 
 namespace diplodocus {
 
-void ConsoleStatsExporter::ExportOne([[maybe_unused]] const StatsExportConfig& stats_export_config,
-                                     const Stats& stats) {
+void ConsoleStatsExporter::ExportOne([[maybe_unused]] const Config& config, const Stats& stats) {
     PrintLnFmt(std::cout, "########################################");
     PrintLnFmt(std::cout, "#                                      #");
     PrintLnFmt(std::cout, "#              Statistics              #");

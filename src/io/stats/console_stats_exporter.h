@@ -8,7 +8,7 @@ namespace diplodocus {
 
 class ConsoleStatsExporter : public StatsExporter {
    public:
-    void ExportOne(const StatsExportConfig& stats_export_config, const Stats& stats) override;
+    void ExportOne(const Config& config, const Stats& stats) override;
     // void ExportAll(const StatsExportConfig& stats_export_config, std::vector<Stats>& stats_all) override;
    private:
     static void ExportConstructionStats(const ConstructionStats& accel_stats);

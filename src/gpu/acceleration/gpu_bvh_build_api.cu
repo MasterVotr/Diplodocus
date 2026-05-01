@@ -47,7 +47,7 @@ inline void UpdateCompactionCount(const CudaBuffer<int32_t>& offsets, const Cuda
     count = offset_last + flag_last;
 }
 
-__global__ void CalculateAabbsKernel(GpuSceneView scene, int tri_count, GpuAabb* aabbs) {
+G void CalculateAabbsKernel(GpuSceneView scene, int tri_count, GpuAabb* aabbs) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= tri_count) return;
 
@@ -56,16 +56,16 @@ __global__ void CalculateAabbsKernel(GpuSceneView scene, int tri_count, GpuAabb*
 }
 
 template <MortonType M>
-__global__ void CalculateMortonsKernel(int tri_count, typename MortonTrait<M>::Setup setup, GpuAabb* aabbs,
-                                       typename MortonTrait<M>::CodeT* mcodes) {
+G void CalculateMortonsKernel(int tri_count, typename MortonTrait<M>::Setup setup, GpuAabb* aabbs,
+                              typename MortonTrait<M>::CodeT* mcodes) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= tri_count) return;
 
     mcodes[idx] = MortonTrait<M>::Encode(aabbs[idx], setup);
 }
 
-__global__ void InitLeavesKernel(int32_t tri_count, GpuBvhNode<BoundingVolumeType::kAabb>* nodes, GpuAabb* aabbs,
-                                 int32_t* node_idx) {
+G void InitLeavesKernel(int32_t tri_count, GpuBvhNode<BoundingVolumeType::kAabb>* nodes, GpuAabb* aabbs,
+                        int32_t* node_idx) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= tri_count) return;
 
@@ -78,7 +78,7 @@ __global__ void InitLeavesKernel(int32_t tri_count, GpuBvhNode<BoundingVolumeTyp
     node_idx[idx] = idx;
 }
 
-__global__ void FindNearestNeighborKernel(int32_t n, GpuAabb* aabbs, int32_t* nns, int radius) {
+G void FindNearestNeighborKernel(int32_t n, GpuAabb* aabbs, int32_t* nns, int radius) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
 
@@ -97,7 +97,7 @@ __global__ void FindNearestNeighborKernel(int32_t n, GpuAabb* aabbs, int32_t* nn
     nns[idx] = best_neighbor;
 }
 
-__global__ void MatchAndClassifyKernel(int32_t n, int32_t* nns, int32_t* valid_flags, int32_t* leader_flags) {
+G void MatchAndClassifyKernel(int32_t n, int32_t* nns, int32_t* valid_flags, int32_t* leader_flags) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
 
@@ -112,10 +112,10 @@ __global__ void MatchAndClassifyKernel(int32_t n, int32_t* nns, int32_t* valid_f
     leader_flags[idx] = leader;
 }
 
-__global__ void MergeAndCompactKernel(int32_t n, GpuAabb* aabbs, int32_t* node_idxs, int32_t* nns,
-                                      int32_t* valid_offsets, int32_t* valid_flags, int32_t* leader_offsets,
-                                      int32_t* leader_flags, GpuBvhNode<BoundingVolumeType::kAabb>* nodes,
-                                      int32_t base_node_offset, GpuAabb* aabbs_next, int32_t* node_idxs_next) {
+G void MergeAndCompactKernel(int32_t n, GpuAabb* aabbs, int32_t* node_idxs, int32_t* nns, int32_t* valid_offsets,
+                             int32_t* valid_flags, int32_t* leader_offsets, int32_t* leader_flags,
+                             GpuBvhNode<BoundingVolumeType::kAabb>* nodes, int32_t base_node_offset,
+                             GpuAabb* aabbs_next, int32_t* node_idxs_next) {
     int c_i = blockIdx.x * blockDim.x + threadIdx.x;
     if (c_i >= n) return;
 
@@ -377,6 +377,19 @@ void LaunchBuildBvhKernelsImpl(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
     timer.reset();
     CUDA_CHECK(
         cudaMemcpy(bvh.root.Data(), node_idxs.Data() + 0, sizeof(*bvh.GetView().root), cudaMemcpyDeviceToDevice));
+    params.construction_stats.memcopy_time += timer.elapsed_ns();
+
+    // Free up memory
+    timer.reset();
+    node_idxs.Free();
+    node_idxs_next.Free();
+    nns.Free();
+    valid_offsets.Free();
+    valid_flags.Free();
+    leader_offsets.Free();
+    leader_flags.Free();
+    aabbs_next.Free();
+    aabbs.Free();
     params.construction_stats.memcopy_time += timer.elapsed_ns();
 
     // SOBB refit

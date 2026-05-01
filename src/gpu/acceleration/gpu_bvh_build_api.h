@@ -25,6 +25,9 @@ void LaunchBuildBvhKernels(const GpuBuildParams& params, GpuBvh<BV>& bvh) {
         case MortonType::kEmc64Var1:
             LaunchBuildBvhKernelsImpl<BV, MortonType::kEmc64Var1>(params, bvh);
             break;
+        case MortonType::kEmc64Var2:
+            LaunchBuildBvhKernelsImpl<BV, MortonType::kEmc64Var2>(params, bvh);
+            break;
     }
 }
 

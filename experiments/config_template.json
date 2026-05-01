@@ -9,11 +9,11 @@
     "background_color": [0.0, 0.0, 0.0],
     "max_depth": 8,
     "area_light_sample_cnt": 2,
-    "pixel_sample_cnt": 32,
+    "pixel_sample_cnt": 32
   },
   "acceleration_structure": {
     "acceleration_structure_type": "ploc",
-    "nn_search_radius": 25,
+    "nn_search_radius": 25
   },
   "scene_load": {
     "name": "Dragon/Dragon",

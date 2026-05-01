@@ -1,0 +1,26 @@
+{
+  "image_export": {
+    "filepath": "output.ppm"
+  },
+  "render": {
+    "renderer_type": "gpu",
+    "width": 1024,
+    "height": 768,
+    "background_color": [0.0, 0.0, 0.0],
+    "max_depth": 8,
+    "area_light_sample_cnt": 2,
+    "pixel_sample_cnt": 32,
+  },
+  "acceleration_structure": {
+    "acceleration_structure_type": "ploc",
+    "nn_search_radius": 25,
+  },
+  "scene_load": {
+    "name": "Dragon/Dragon",
+    "meta_data": "Dragon/Dragon_cam0"
+  },
+  "stats_export": {
+    "stats_export_format": "json",
+    "filepath": "output.json"
+  }
+}

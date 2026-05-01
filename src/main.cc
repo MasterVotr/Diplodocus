@@ -2,7 +2,7 @@
 #include "util/logger.h"
 
 int main(int argc, char** argv) {
-    Logger::init();
+    Logger::init(Logger::LogLevel::Info);
 
     // Create app specification
     diplodocus::AppParameters app_params = {

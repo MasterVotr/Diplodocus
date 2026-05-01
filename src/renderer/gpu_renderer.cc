@@ -104,7 +104,7 @@ RenderResult StartRenderImpl(Stats& stats, cuda_kernels::GpuSceneView gpu_scene,
     cuda_kernels::LaunchBuildBvhKernels<BV>(gpu_build_params, gpu_bvh);
     stats.construction_stats.build_time = build_t.elapsed_ms();
 
-    // Download bvh to host for debuging
+    // Download bvh to host for Stats calculation
     std::vector<cuda_kernels::GpuBvhNode<BV>> h_gpu_bvh_nodes;
     std::vector<int32_t> h_gpu_bvh_tri_idxs;
     int32_t h_gpu_bvh_root;

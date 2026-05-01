@@ -174,7 +174,7 @@ Scene CreateTestScene2() {
 }  // namespace
 
 CliApp::CliApp(AppParameters app_params) : App(app_params) {
-    Logger::info("CliApp created");
+    Logger::debug("CliApp created");
 
     // Parse console arguments
     if (app_params_.app_console_args.count != 2) {
@@ -193,6 +193,8 @@ CliApp::CliApp(AppParameters app_params) : App(app_params) {
 }
 
 void CliApp::Run() {
+    Logger::info("Running Diplodocus...");
+
     // Load scene
     auto scene_loader = CreateSceneLoader(app_ctx_.config.scene_load_config);
     app_ctx_.scene = std::move(scene_loader->Load(app_ctx_.config.scene_load_config).value());

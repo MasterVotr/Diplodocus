@@ -10,6 +10,7 @@
 
 namespace diplodocus::cuda_kernels {
 
+// CUDA error checking
 inline void CheckCudaImpl(cudaError_t err, const char* expr, const char* file, int line) {
     if (err != cudaSuccess) {
         fprintf(stderr, "CUDA error: %s at %s:%d (%s)\n", cudaGetErrorString(err), file, line, expr);

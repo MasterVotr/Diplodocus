@@ -7,8 +7,6 @@
 #include <string>
 
 // Third party includes
-// #define TINYOBJLOADER_IMPLEMENTATION
-// #include <tiny_obj_loader.h>
 #include <rapidobj.hpp>
 
 #include "scene/light.h"

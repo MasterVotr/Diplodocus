@@ -74,7 +74,7 @@ def main() -> int:
 
     template = load_template()
     kResultsDir.mkdir(parents=True, exist_ok=True)
-    csv_path = kResultsDir / "raw_runs.csv"
+    csv_path = kResultsDir / "raw_results.csv"
 
     fieldnames = [
         "scene",

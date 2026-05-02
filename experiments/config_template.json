@@ -6,7 +6,7 @@
     "renderer_type": "gpu",
     "width": 1024,
     "height": 768,
-    "background_color": [0.0, 0.0, 0.0],
+    "background_color": [0.1, 0.1, 0.1],
     "max_depth": 8,
     "area_light_sample_cnt": 2,
     "pixel_sample_cnt": 32

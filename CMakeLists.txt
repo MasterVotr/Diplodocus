@@ -52,7 +52,7 @@ add_library(diplodocus_gpu STATIC
 set_target_properties(diplodocus_gpu PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_ARCHITECTURES 86
+    CUDA_ARCHITECTURES 80;86;89
     CUDA_RUNTIME_LIBRARY Shared
 )
 

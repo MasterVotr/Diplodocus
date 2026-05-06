@@ -1,5 +1,17 @@
 # Acceleration Data Structures for Ray Tracing Algorithms on the GPU
 
+<!--toc:start-->
+- [Overview](#overview)
+- [Project goals](#project-goals)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Build & run](#build-run)
+  - [Requirements:](#requirements)
+  - [Configuration](#configuration)
+- [Project state](#project-state)
+- [Potential extensions](#potential-extensions)
+<!--toc:end-->
+
 ## Overview
 
 **Author**: Jakub Votrubec
@@ -15,25 +27,24 @@ Specifically, the project explores:
 * [**Extended Morton Codes (EMC)**](https://dl.acm.org/doi/abs/10.1145/3105762.3105782) (Vinkler et al. 2017 Extended Morton Codes)
 * [**SOBB (Skewed Oriented Bounding Boxes)**](https://onlinelibrary.wiley.com/doi/full/10.1111/cgf.70062) (Káčerik et al. 2025 SOBB)
 
-## This project is a work-in-progress
-
-* Functioning snapshot is on branch **main**
-* The work-in-progress version is on branch **dev**
+Licence can be found in [licence.txt](licence.txt)
 
 ---
 
-## Project Goals
+## Project goals
 
 * Implement **GPU-based BVH construction using PLOC**
 * Extend PLOC with:
-  * Extended Morton Codes (EMC)
+  * Extended Morton Codes (EMC) - two versions
   * SOBB
   * Combined EMC + SOBB approach *(novel combination)*
 * Evaluate and compare all variants:
   * `PLOC`
-  * `PLOC + EMC`
+  * `PLOC + EMC v1`
+  * `PLOC + EMC v2`
   * `PLOC + SOBB`
-  * `PLOC + EMC + SOBB`
+  * `PLOC + EMC v1 + SOBB`
+  * `PLOC + EMC v2 + SOBB`
 * The main evaluation metrics are:
   * BVH build time
   * Tracing performance
@@ -47,17 +58,14 @@ Specifically, the project explores:
 * GPU code: **CUDA 12** (NVCC)
 * Build system: **CMake** 
 * Configuration: **JSON** ([nlohmann](https://github.com/nlohmann/json))
-* Scene/model format: **OBJ** ([tinyobjloader](https://github.com/tinyobjloader/tinyobjloader))
+* Scene/model format: **OBJ** ([rapidobj](https://github.com/guybrush77/rapidobj))
 * Output image format: **PPM**
-
-Planned (not yet implemented):
-
-* GUI and debug visualisation: **OpenGL + ImGui** (GUI & debug visualization)
-* Results export: **CSV**
+* Metrics export: **Console** & **JSON** ([nlohmann](https://github.com/nlohmann/json))
+* Benchmark orchestation: **Python**
 
 ---
 
-## Project Structure
+## Project structure
 
 ```bash
 src/
@@ -75,6 +83,8 @@ src/
 third-party/        # External dependencies
 res/                # Scenes and metadata
 out/                # Output renders
+experiments/        # Benchmark orchestration, benchmark results
+report/             # Master's thesis report and report source files
 
 b.sh                # Build script
 r.sh                # Run script (with sample_config.json)
@@ -83,14 +93,14 @@ sample_config.json  # Sample configuration
 
 ---
 
-## Build & Run
+## Build & run
 
 
 1. Using scripts:
 
     ```bash
-    ./b.sh
-    ./r.sh # sample_config.json is used
+    ./b.sh <preset> # choose debug/release preset
+    ./r.sh          # sample_config.json is used
     ```
 
 2. Directly running the executable:
@@ -110,39 +120,48 @@ sample_config.json  # Sample configuration
 
 * To change the configuration you can either use and modify `sample_config.json`, or create your own config file
 * Unspecified values fall back to hardcoded deafults
-* Yru can look up the default values in `config/` and the precise json formulation in `io/config/`)
+* You can look up the default values in `config/` and the precise json formulation in `io/config/`)
 
 ---
 
-## Current State
+## Project state
 
-### Implemented
-
-* CLI framework:
+* **CLI framework**
 
   * Config loading (JSON)
-  * Scene setup
+  * Scene loading (OBJ)
   * PPM image export
+  * Collected metrics export (Console or JSON)
 
-* **CPU Reference Renderer**
+* **CPU reference renderer**
 
   * Whitted-style ray tracer
   * Metrics collection
 
-* **CPU Reference Acceleration Data Structure**
+* **CPU reference acceleration data structure**
 
   * SAH-based BVH inspired by an [article](https://ieeexplore.ieee.org/abstract/document/4342588) from Wald et al.
   * Metrics collection
 
-* **GPU Infrastructure**
+* **GPU infrastructure**
 
   * Scene representation and memory transfer
   * Ray and configuration structures for the GPU
 
-* **GPU Ray Tracing (experimental)**
+* **GPU ray tracing**
 
-  * Stack-based Whitted ray tracer *(planned to be replaced)*
-  * Basic path tracing prototype
+  * Whitted-style non-stack ray tracer
+  * Metrics collection
+
+* **GPU BVH construction** 
+
+  * PLOC
+  * PLOC + EMC v1
+  * PLOC + EMC v2
+  * PLOC + SOBB
+  * PLOC + EMC v1 + SOBB
+  * PLOC + EMC v2 + SOBB
+  * Metrics collection
 
 * **Scenes**
 
@@ -150,28 +169,19 @@ sample_config.json  # Sample configuration
   * Cornell Box (sphere variant)
   * Stanford Bunny (in a Cornell Box)
 
+* **Extended benchmarking**
 
-### Work In Progress / Planned
+  * Metrics collection structures
+  * Console export
+  * JSON export
+  * Orechstration using Python with data collection into CSV
 
-* GPU BVH construction:
+---
 
-  * PLOC
-  * PLOC + EMC
-  * PLOC + SOBB
-  * PLOC + EMC + SOBB
+## Potential extensions
 
-* GPU-side metrics:
-
-  * Build statistics
-  * Traversal statistics
-  * Ray tracing performance
-
-* Extended benchmarking:
-
-  * More scenes
-  * CSV export (optional)
-
-* GUI application (optional stretch goal)
+* GUI application
+* Automatic documentation
 
 ---
 

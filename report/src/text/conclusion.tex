@@ -1,0 +1,26 @@
+%---------------------------------------------------------------
+\chapter{Conclusion}
+\label{chap:conclusion}
+%---------------------------------------------------------------
+
+The primary goal of this thesis was to implement, analyze, and compare selected BVH construction techniques and their extensions on GPU architectures. This objective was fulfilled by implementing the Parallel Locally Ordered Clustering method~\cite{MB17}, Extended Morton Codes~\cite{Vinkler2017}, and Skewed Oriented Bounding Boxes~\cite{KB25}, as well as their mutual combinations. All variants were integrated into a unified framework and systematically evaluated.
+
+The secondary objective was to establish a consistent experimental framework for evaluating BVH performance using metrics derived from Meister~et~al.~\cite{MB22}. This objective was achieved through the development of a configurable GPU-based ray tracing framework using a Whitted-style renderer. The framework enables detailed measurement of construction time, traversal performance, and BVH cost. Experiments were conducted on multiple scenes and viewpoints, and the collected data was analyzed to assess the impact of individual techniques and their combinations.
+
+The theoretical part of the thesis provided a comprehensive overview of ray tracing and acceleration data structures, with a focus on BVHs. Particular attention was given to construction algorithms, traversal strategies, and cost models, including their suitability for parallel execution on modern GPU architectures. The implementation part described the design and realization of the system, including data representations, GPU-specific optimizations, algorithmic details, and instrumentation for performance evaluation.
+
+The experimental results demonstrate clear trade-offs between BVH construction cost and traversal efficiency. The Extended Morton Code variants increase construction time but have only marginal impact on traversal performance, making them a low-impact optimization with limited practical benefit in the evaluated scenarios. In contrast, the Skewed Oriented Bounding Box extension significantly alters BVH properties. While it increases construction time substantially, it can improve traversal efficiency in scenes with complex or non-uniform geometry due to tighter bounding volumes. However, for most evaluated scenes, this benefit is outweighed by increased traversal overhead, resulting in overall worse performance.
+
+The combination of EMC and SOBB extensions does not introduce fundamentally new behavior, rather, it reflects the individual characteristics of each method. EMC affects the ordering of primitives during construction, while SOBB modifies the bounding volumes, and their combined effect follows from these independent contributions.
+
+In summary, the results confirm that improvements in bounding volume tightness do not universally translate into better ray tracing performance. The effectiveness of a given BVH construction technique strongly depends on scene characteristics and the balance between construction cost and traversal efficiency.
+
+\paragraph{Future Work}
+
+Several directions for future work can be identified:
+\begin{itemize}
+    \item The ray tracing framework could be extended with a more GPU-efficient architecture, such as a wavefront-based renderer, to improve workload distribution and coherence.
+    \item SOBBs could be integrated directly into the BVH construction process instead of being applied as a post-processing step, which may lead to better overall hierarchy quality.
+    \item Additional optimizations, such as subtree collapsing, as suggested in the PLOC article~\cite{MB17}, could be implemented and evaluated.
+\end{itemize}
+ Finally, the usability of the framework could be improved by adding a graphical interface for interactive configuration and visualization of results.

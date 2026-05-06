@@ -1,0 +1,78 @@
+%---------------------------------------------------------------
+\chapter{Acceleration data structure comparison and measurement}
+\label{chap:measurement}
+%---------------------------------------------------------------
+
+\begin{chapterabstract}
+This chapter explains the currently used methodology to measure and compare acceleration data structures, specifically bounding volume hierarchies. The measurement and testing done inside of this thesis, that you can find in later chapters, is based on the methodology explained in this chapter. 
+\end{chapterabstract}
+
+\section{Cost model for wide BVHs}
+
+As explained in Section \ref{sec:cost-function}, cost models and functions are used to estimate the quality of a particular BVH. The quality is in terms of the expected number of operations needed to find the nearest ray-triangle intersection. The surface area heuristic \cite{GS87} is used the most. To remind the reader, here is the formula for the cost function:
+\begin{equation}
+    c(N) =
+    \begin{cases}
+        c_T + \displaystyle\sum_{N_c} \dfrac{SA(N_c)}{SA(N)}\,c(N_c) & \text{if } N \text{ is an interior node}, \\[6pt]
+        c_I \lvert N \rvert & \text{otherwise},
+    \end{cases}
+    \label{eq:SAH-cost-model}
+\end{equation}
+where $c(N)$ is the cost of a subtree with root $N$, $N_c$ is a child node of $N$, $SA(N)$ is the surface area of the bounding volume of node $N$, and $|N|$ is the number of primitives on node $N$. To simplify the cost of traversal and intersection, constants $c_T$ and $c_I$ are used, respectively.
+
+The recurrence is removed by unrolling:
+\begin{equation}
+    c(N) = \frac{1}{SA(N)} \left[ c_T \sum_{N_i} SA(N_i) + c_I \sum_{N_l} SA(N_l) \lvert N_l \rvert \right], 
+    \label{eq:SAH-cost-model-unrolled}
+\end{equation}
+where $N_i$ are the interior nodes and $N_l$ are the leaf nodes.
+
+However, this model is far from reality, as it does not take into account other factors such as the ray distribution, occlusions, the used rendering algorithm of the underlying hardware architecture. Nevertheless, most construction algorithms nowadays use this cost model to maximize the ray performance. Some construction algorithms exploit the fact that if only one primitive per leaf is used, then the cost function reduces simply to the sum of the surface areas of the bounding volumes in interior nodes. \cite{MB22}
+
+The standard surface area heuristic does not take into account SIMD units, which most modern hardware architectures are equipped with, that allow multiple intersection tests to be processed at once. This is used for example in wide BVHs, where multiple bounding volumes at once can be tested against a single ray. Primitives in leaves are processed in a similar fashion, so it is advantageous to align the number of primitives per leaf with the SIMD width. To take into account this fact, a modified version of the cost model was created \cite{WBB08}:
+\begin{equation}
+    \label{eq:SAH-cost-model-SIMD}
+    c(N) = \frac{1}{SA(N)}
+    \left[
+        c_T \sum_{N_i} SA(N_i)
+        + c_I \sum_{N_l} SA(N_l)\, k \left\lceil \frac{|N_l|}{k} \right\rceil
+    \right],
+\end{equation}
+where $k$ the SIMD width or the branching factor. This modified version of the cost model punishes leaves if their size is not aligned with $k$. $c_T$ is made independent of $k$ by multiplying the term by $k$. \cite{MB22}
+
+\section{Construction time}
+
+% Toto jsem si vymyslel sám, přesunout jinam?
+
+The time required to construct the BVH is also important. That is especially true for real time ray/path tracing, where the frame budget is critically low. Construction time may be distributed among multiple frames if the complete reconstruction is not frequent, for example in static scenes, or the BVH can be adjusted when there are only small deformations to the scene. Of course, that is almost impossible for highly dynamic scenes, where the BVH is rebuilt on every frame. Build times are most commonly measured in milliseconds.
+
+\section{Trace performance}
+
+% Toto jsem si vymyslel sám, přesunout jinam?
+
+To make trace performance measurement better for comparison, rays per second ($Mray/s$) are more easily compared between algorithms. Pure time to render a scene is not as explainable and hides details. Rays per second for each ray type provide a more detailed description. representation of the work distribution. This is a standard method for measuring trace performance \cite{MB22}. The types include primary rays (only a small number), secondary rays (most divergent), and occlusion/shadow rays (most abundant). 
+
+\section{Cost and trace performance corelation}
+
+There is a discrepancy between the BVH cost and the actual trace performance \cite{AK13}. The cost reduction of a BVH tree does not guaranty an improvement in trace performance. Top-down builders, such as the ones using SAH for local improvement during construction, provide locally well optimized top levels, which gives good results, because almost all rays visit them, even though they have a higher cost than other approaches. To measure this fact, a ratio between trace time and cost is computed, which expresses the time needed for a unit cost. This value can be considered as a correction to the actual cost values. The corrected cost, which actually corresponds to the trace times, can be obtained by multiplying the cost by these values. \cite{MB22}
+
+%- BVH
+%   - DFS/BFS order
+%   - node size/layout
+%   - AoS/SoA data layout
+%   - same traversal algorithm
+%   - Morton code bit length
+%   - search radius
+%   - same width of wide BVH / SIMD
+%- the same raytracing/pathtracing algorithm
+%   - samples per pixel
+%   - resolution
+%   - maximum recursion depth
+%- diverse scenes
+%   - architecture/object, flat/terrain, inside/outisde
+%   - increasing complexity (# of triangles, shapes of triangles)
+%- hardware
+%- cost model evaluation
+%   - advaced model with SIMD
+%   - traversal cost
+%   - incidence cost

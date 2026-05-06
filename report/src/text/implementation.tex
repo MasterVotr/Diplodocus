@@ -1,0 +1,353 @@
+%---------------------------------------------------------------
+\chapter{Implementation}
+\label{chap:implementation}
+%---------------------------------------------------------------
+
+\begin{chapterabstract}
+This chapter describes the implementation of the GPU-based BVH data structures this thesis focused on along with the ray tracing framework designed for the evaluationthe data structure variants. The system is built as a configurable pipeline that supports multiple BVH construction algorithms and their combinations, including Parallel Locally Ordered Clustering, Extended Morton Codes, Skewed Oriented Bounding Boxes and their combinations.
+\end{chapterabstract}
+
+%---------------------------------------------------------------
+\section{Overview of the implementation}
+
+The implementation is designed as a configurable pipeline that allows for the systematic evaluation of different BVH construction methods and their extensions. The behavior of the system is controlled through a JSON configuration file, which defines the input scene, selected rendering approach, and the specific BVH variant to be used.
+
+The execution pipeline begins with loading the scene geometry from standard OBJ and MTL files, complemented by a custom metadata file that specifies additional scene properties such as camera parameters and light sources. Based on the configuration, the system initializes the corresponding renderer and BVH construction method.
+
+All scene data are subsequently uploaded to the GPU, where the necessary memory for rendering and statistical evaluation is allocated. The BVH is then constructed entirely on the GPU, with performance metrics collected during this phase to enable later analysis.
+
+Following BVH construction, the ray tracing stage is executed. The scene is rendered into a framebuffer using the constructed hierarchy, while additional statistics related to traversal are recorded. After completion, both the rendered image and the collected data are transferred back to the CPU.
+
+The final image is exported in PPM format, and the recorded statistics are either printed to the console or saved to a JSON file, depending on the configuration. This pipeline enables reproducible experiments and systematic comparison of different BVH variants.
+
+%---------------------------------------------------------------
+\section{System setup}
+
+The implementation is developed using \textbf{C++20} with the Clang compiler. C++ was chosen as the primary host language due to its low-level control over memory and performance, as well as its mature standard library, which simplifies orchestration of the overall system.
+
+The GPU components are implemented using the \textbf{CUDA Toolkit 12} and compiled with the NVCC compiler. CUDA was selected based on prior experience and its widespread use in both industry and research for high-performance parallel computing. Its programming model provides direct control over GPU execution and memory hierarchy, which is essential for efficient implementation of acceleration data structures.
+
+Scene geometry is loaded from the widely used \textbf{OBJ} and \textbf{MTL} formats \cite{mtl_obj} using the \textit{rapidobj} library \cite{rapidobj}. These formats were chosen due to their simplicity, human-readable structure, and ease of editing. To support additional scene properties not covered by these formats, such as camera parameters and point light sources, a custom metadata format is used.
+
+Configuration is handled through \textbf{JSON} files, parsed using the \textit{nlohmann/json} library \cite{nlohmann_json}. This approach enables flexible and easily modifiable experiment setup without requiring recompilation.
+
+The project is built using the \textbf{CMake} build system, which provides a platform-independent and maintainable way to manage compilation and dependencies.
+
+For large-scale testing and performance evaluation, a set of \textbf{Python} scripts is used to automate execution of experiments and to collect measurement data. The results are aggregated and stored in CSV format, enabling further analysis and visualization.
+%---------------------------------------------------------------
+\section{Data representation}
+
+This section describes the data representations used throughout the implementation. The design of these structures is primarily driven by the requirements of efficient GPU execution, in particular memory coalescing, compactness, and simplicity of access patterns.
+
+\subsection{Scene representation}
+
+The scene is represented using a \textit{structure-of-arrays} (SoA) layout. This design was chosen to improve memory access efficiency on the GPU, as it enables coalesced memory accesses when processing large numbers of primitives in parallel.
+
+The representation separates geometric data, material properties, and light sources into independent arrays. Triangles are stored as individual vertex positions and normals, together with material indices. Materials are represented by their standard shading parameters, and light sources are divided into point lights and area lights. The camera is defined separately through metadata loaded alongside the scene.
+
+\begin{lstlisting}[language=C++, caption=Scene representation]
+struct Scene {
+    // Triangles
+    float3* tri_v0_pos;
+    float3* tri_v1_pos;
+    float3* tri_v2_pos;
+    float3* tri_v0_norm;
+    float3* tri_v1_norm;
+    float3* tri_v2_norm;
+    float3* tri_geom_norm;
+    uint8_t* tri_has_vn;
+    int* tri_mat_id;
+    int tri_cnt;
+
+    // Materials
+    float3* mat_ambient;
+    float3* mat_diffuse;
+    float3* mat_specular;
+    float3* mat_transmittance;
+    float3* mat_emission;
+    float* mat_shininess;
+    float* mat_ior;
+    float* mat_r_ior;
+    float* mat_dissolve;
+    int mat_cnt;
+
+    // PointLights
+    float3* pl_pos;
+    float3* pl_color;
+    int pl_cnt;
+
+    // AreaLights
+    float3* al_color;
+    int* al_tri_id;
+    float* al_surface_area;
+    float* al_power;
+    int al_cnt;
+};
+\end{lstlisting}
+
+\subsection{Axis-aligned bounding boxes}
+
+AABBs are used as the baseline bounding volume representation. Each AABB stores the minimum and maximum extent along each axis, resulting in a total size of 24 bytes.
+
+\begin{lstlisting}[language=C++, caption=AABB representation]
+struct Aabb {
+    float3 min;
+    float3 max;
+};
+\end{lstlisting}
+
+\subsection{32-DOP bounding volume}
+
+A 32-direction discrete oriented polytope (32-DOP) is used as an intermediate representation during SOBB construction. It consists of 16 fixed normal directions (stored separately), each defining a pair of parallel planes (slabs). For each normal, the minimum and maximum projection values are stored.
+
+\begin{lstlisting}[language=C++, caption=32-DOP representation]
+struct Dop {
+    float2 slab[16];
+};
+\end{lstlisting}
+
+\subsection{Skewed oriented bounding boxes}
+
+The SOBB is represented using an indirect encoding based on a subset of directions from the 32-DOP representation. This variant was selected due to its favorable trade-off between construction cost and traversal performance, as reported in \cite{KB24}.
+
+The bounding volume is defined by three selected normal directions, whose identifiers are stored in a compact form as explained in the previous chapter. For each direction, the corresponding minimum and maximum extents are stored.
+
+\begin{lstlisting}[language=C++, caption=SOBB representation]
+struct Sobb {
+    float3 b_mins;
+    float3 b_maxs;
+    uint32_t n_ids;
+};
+\end{lstlisting}
+
+\subsection{BVH layout}
+
+The BVH is stored as an array of nodes, accompanied by an array of primitive indices referencing the underlying scene data. Each node contains its bounding volume, references to its children, and additional metadata such as the parent index and a leaf indicator.
+
+While more compact and memory-efficient layouts are possible (e.g., implicit layouts or compressed node representations), a straightforward structure was chosen to simplify implementation and debugging.
+
+\begin{lstlisting}[language=C++, caption=BVH node representation]
+struct BvhNode<BoundingVolumeType> {
+    BoundingVolumeType bounds;
+    int32_t parent;
+    int32_t left; 
+    int32_t right;
+    int32_t is_leaf;
+};
+\end{lstlisting}
+
+\subsection{Morton codes}
+
+Morton codes are represented as 64-bit unsigned integers, with 63 bits effectively used for encoding spatial positions (21 bits per axis). The implementation is designed in a generic manner using a traits-based approach, allowing different Morton code variants, including extended Morton codes, to be implemented within a unified interface.
+
+Each Morton variant defines its own initialization and encoding procedure, encapsulated within a dedicated trait class. Bit interleaving is performed using shift operations and precomputed constants.
+
+\begin{lstlisting}[language=C++, caption=Morton code trait representation]
+class MortonTrait<MortonType> {
+public:
+    using CodeT = uint64_t;
+
+    struct Setup {}; // Custom data per Morton implementation
+
+    static Setup Init();      // Initialization
+    static CodeT Encode(const Setup&); // Encode primitive
+};
+\end{lstlisting}
+\section{BVH construction algorithms}
+
+This section describes the implementation of the BVH construction algorithms based on the selected research papers, as well as their mutual combinations. The focus is on implementation-specific aspects and deviations from the original descriptions where applicable.
+
+\subsection{Parallel locally Ordered clustering}
+
+The PLOC algorithm is implemented following the pseudocode presented in \cite{MB17} and described in Algorithm~\ref{alg:ploc}. The neighborhood search radius is configurable, allowing control over the locality of clustering.
+
+The implementation proceeds in several stages:
+
+\begin{enumerate}
+    \item \textbf{Preprocessing:} Scene bounds, primitive centroids, and Morton codes are computed in a single GPU kernel launch.
+    
+    \item \textbf{Sorting:} Primitives are sorted according to their Morton codes using a radix sort. The implementation provided by the \textit{CCCL} library~\cite{nvidia_cccl} is used.
+    
+    \item \textbf{Initialization:} Each primitive initially forms a separate cluster. A cluster is represented by its bounding volume (AABB at this stage) and an index, rather than a full BVH node, to reduce memory usage.
+    
+    \item \textbf{Iterative clustering:} The main loop continues until a single cluster remains. Each iteration consists of the following steps:
+    
+    \begin{enumerate}
+        \item \textbf{Nearest neighborhood search:} A single GPU kernel is launched, which identifies nearest neighbors for each cluster using the ordering induced by Morton codes.
+        
+        \item \textbf{Matching and classification:} Mutual nearest neighbors are identified and marked for merging in a single GPU kernel launch. For each pair, the cluster with the lower index becomes the leader, while the other is merged into it. Clusters without a mutual match are marked as singles.
+        
+        \item \textbf{Prefix scan:} Two exclusive prefix scans (implemented using the \textit{CCCL} library~\cite{nvidia_cccl}) are performed: one for single clusters and one for merging leaders. This enables correct computation of new cluster and node positions and ensures proper compaction.
+        
+        \item \textbf{Merge and compaction:} Clusters are merged and written into a new buffer based on the computed offsets. At this stage, corresponding BVH nodes are also created and inserted into the final hierarchy.
+        
+        \item \textbf{Update:} Cluster counts and node offsets are updated for the next iteration.
+    \end{enumerate}
+\end{enumerate}
+
+The original article~\cite{MB17} mentions a subtree collapsing phase. However, it is not formally included in the main algorithm description. Due to time constraints, this phase is not implemented. While this omission may increase traversal costs due to a less optimal hierarchy, it is consistently excluded across all evaluated variants, ensuring a fair comparison.
+
+\subsection{Extended Morton codes}
+
+Two EMC variants are implemented based on the descriptions in \cite{Vinkler2017} and detailed in Algorithms~\ref{alg:emc64var1} and~\ref{alg:emc64var2}.
+
+The implementation follows a unified design using a traits-based template abstraction, described in the previous section, allowing different Morton code variants to be seamlessly integrated into the construction pipeline.
+
+The two implemented variants can be selected through the configuration and differ as follows:
+
+\begin{itemize}
+    \item \textbf{Variant 1:} Implements adaptive axis ordering and inserts a size bit after every fourth bit.
+    
+    \item \textbf{Variant 2:} Extends Variant 1 by introducing variable bit allocation per axis and inserting size bits as every seventh bit, with up to six size bits in total.
+\end{itemize}
+
+During implementation, ambiguities and inconsistencies were identified in the original pseudocode. These issues required interpretation and adjustment to obtain a consistent and functional implementation.
+
+\subsection{Skewed oriented bounding boxes refitting}
+
+Skewed Oriented Bounding Boxes (SOBBs) are implemented as a post-processing refitting step applied to a BVH initially constructed using AABBs.
+
+The refitting is performed bottom-up in a single GPU kernel launch. Leaf nodes are first fitted using primitive geometry, where a 32-DOP representation is used as an intermediate step for computing the final SOBB. Internal nodes are then processed by combining the 32-DOP representations of their children and deriving the resulting SOBB.
+
+A parallel traversal strategy is used, where threads propagate from leaves towards the root. Synchronization is achieved using an atomic counter per node: only the second thread reaching a node performs the refitting, ensuring that both children have already been processed. Memory consistency between threads is enforced using the \texttt{\_\_threadfence()} CUDA primitive.
+
+The use of 32-DOP as an intermediate representation simplifies the combination of child bounding volumes and improves numerical robustness of the resulting SOBBs.
+
+The use of SOBBs is configurable and can be enabled or disabled independently of other extensions.
+
+\subsection{Combined variants}
+
+The EMC and SOBB extensions affect different stages of the BVH construction pipeline. EMC modifies the spatial ordering of primitives prior to clustering, while SOBB is applied as a post-construction refitting step. As a result, their combination does not introduce significant implementation complexity.
+
+To avoid runtime overhead, the selection of variants (e.g., AABB, SOBB, EMC Variant 1, EMC Variant 2, and their combinations) is implemented using C++ templates. This approach shifts branching decisions to compile time, improving performance by eliminating conditional logic in GPU kernels.
+
+All combinations of supported variants can be selected through the configuration system.
+
+%---------------------------------------------------------------
+\section{Ray tracing framework}
+
+A lightweight yet efficient ray tracing framework was implemented to evaluate the constructed BVH variants. The framework follows the classical Whitted-style ray tracing approach~\cite{W80}, which is sufficient for validating correctness and measuring traversal performance.
+
+For each pixel, multiple primary rays are generated according to a configurable sample count. Each ray is intersected with the scene using the constructed BVH. If no intersection is found, a configurable background color is returned.
+
+In the case of a valid intersection, shading is computed using a direct illumination model. Visibility is determined by casting shadow rays toward light sources, including both point lights and sampled area lights. The number of samples for area lights is configurable.
+
+For visible light sources, the contribution is computed using the Phong reflection model \cite{P75} combined with the material properties of the intersected primitive. The contributions of all light samples are accumulated and weighted by the current ray throughput.
+
+For materials with reflective or refractive properties, secondary rays are generated. Reflection and refraction directions are computed and one is chosen using the Fresnel-Schlick \cite{FS94} approximation, with stochastic selection. Only one secondary ray is generated per interaction to avoid the exponential growth of rays and recursion on the GPU. The ray throughput is updated according to the material properties.
+
+The recursion depth is limited by a configurable maximum number of bounces. The final pixel color is obtained by averaging over all samples and applying gamma correction.
+
+The framework prioritizes deterministic execution and reproducibility over physical accuracy. All random value generation is done through avalanche hashing using the seed from the configuration in combination with the changing local variables to ensure reproducible results.
+
+\subsection{Megakernel ray tracer}
+
+The entire ray tracing pipeline is implemented as a single GPU megakernel, where one thread is assigned to each pixel. This design was chosen for its simplicity and ease of integration with the BVH evaluation framework, as the primary focus of this thesis is on acceleration structures rather than rendering architectures.
+
+While straightforward, the megakernel approach has known limitations. In particular, it may lead to reduced warp coherence and suboptimal workload distribution compared to more advanced approaches such as wavefront path tracing or persistent-thread traversal schemes discussed in previous chapters. These alternatives could provide better utilization of GPU resources and are considered as potential directions for future work.
+
+%---------------------------------------------------------------
+\section{Configuration and scene description}
+
+The behavior of the system is controlled through a JSON-based configuration file, which is parsed using the \textit{nlohmann/json} library~\cite{nlohmann_json}. This approach allows flexible specification of experimental parameters without requiring recompilation, enabling efficient testing of multiple configurations.
+
+The configuration is divided into two main groups: parameters related to BVH construction and parameters controlling the rendering process. There are other parts of the configuration, e.g., input and output configuration, but details of those are not that interesting.
+
+\paragraph{BVH configuration} The BVH construction is controlled by the following parameters:
+
+\begin{itemize}
+    \item \texttt{acceleration\_structure\_type}: Specifies the BVH variant to be constructed (e.g., baseline, EMC variants, SOBB variants, or their combinations).
+    \item \texttt{nn\_search\_radius}: Defines the radius used during the nearest-neighbor search phase of the PLOC algorithm.
+\end{itemize}
+
+\paragraph{Rendering configuration} The ray tracing framework is controlled by the following parameters:
+
+\begin{itemize}
+    \item \texttt{renderer\_type}: Selects the rendering method.
+    \item \texttt{width}, \texttt{height}: Define the resolution of the output image.
+    \item \texttt{background\_color}: Specifies the color returned when no intersection is found.
+    \item \texttt{area\_light\_sample\_cnt}: Number of samples used for area light evaluation.
+    \item \texttt{pixel\_sample\_cnt}: Number of samples per pixel.
+    \item \texttt{seed}: Seed for random number generation, ensuring reproducibility.
+    \item \texttt{gamma\_correction}: Gamma value applied to the final image.
+\end{itemize}
+
+The scene itself is defined using standard OBJ and MTL files, extended with a custom metadata file that specifies camera parameters and light sources. The configuration file references these inputs and determines how they are processed within the pipeline.
+
+The complete configuration schema, including all supported parameters and their exact structure, is provided in the accompanying codebase attached to this thesis.
+
+%---------------------------------------------------------------
+\section{Measurement and instrumentation}
+
+To enable detailed evaluation of the implemented algorithms, statistics are collected during both BVH construction and ray tracing. The instrumentation is designed to provide insight into individual stages of the pipeline, allowing fine-grained performance analysis and comparison of different variants. The statistics collected were chosen based of the measurement methodology discussed in Chapter \ref{chap:measurement}.
+
+\paragraph{Construction statistics} During BVH construction, timing and structural metrics are recorded for each major stage of the pipeline:
+
+\begin{itemize}
+    \item \texttt{build\_time}: Total BVH construction time (ms).
+    \item \texttt{init\_time}: Initialization time (ns).
+    \item \texttt{memcopy\_time}: Time spent on CPU--GPU memory transfers (ns).
+    \item \texttt{morton\_construction\_time}: Morton code computation time (ns).
+    \item \texttt{morton\_sort\_time}: Sorting time using radix sort (ns).
+    \item \texttt{nn\_search\_time}: Nearest neighbor search time (ns).
+    \item \texttt{match\_and\_classify\_time}: Cluster matching and classification time (ns).
+    \item \texttt{prefix\_scan\_time}: Prefix scan time (ns).
+    \item \texttt{merge\_and\_compact\_time}: Cluster merging and compaction time (ns).
+    \item \texttt{sobb\_refit\_time}: Time required for SOBB refitting (ns).
+    \item \texttt{kernel\_time}: Total GPU kernel execution time measured from the host (ns).
+    \item \texttt{node\_count}: Total number of BVH nodes.
+    \item \texttt{inner\_node\_count}, \texttt{leaf\_node\_count}: Number of internal and leaf nodes.
+    \item \texttt{bvh\_cost}: Estimated BVH cost (e.g., SAH-based metric).
+    \item \texttt{memory\_consumption}: Total memory usage of the BVH structure.
+\end{itemize}
+
+\paragraph{Ray tracing statistics} During rendering, the following metrics are collected:
+
+\begin{itemize}
+    \item \texttt{frame\_time}: Total frame time (ms).
+    \item \texttt{raytracing\_time}: Time spent in the ray tracing kernel (ms).
+    \item \texttt{primary\_ray\_count}: Number of primary rays.
+    \item \texttt{secondary\_ray\_count}: Number of generated reflection/refraction rays.
+    \item \texttt{shadow\_ray\_count}: Number of shadow rays.
+\end{itemize}
+
+\paragraph{Traversal Statistics} To analyze BVH traversal efficiency, additional query-related metrics are recorded:
+
+\begin{itemize}
+    \item \texttt{query\_count}: Total number of traversal queries.
+    \item \texttt{intersection\_count}: Number of ray-primitive intersection tests.
+    \item \texttt{traversal\_count}: Number of BVH node traversal steps.
+\end{itemize}
+
+\paragraph{Data collection and processing}
+
+The collected statistics are exported either as console output or serialized into a JSON file, depending on the configuration. This enables flexible post-processing and integration with external analysis tools.
+
+To support large-scale experiments, a set of Python scripts is used to automate execution across multiple configurations and scenes. The scripts aggregate the results into CSV files, which are subsequently processed to compute derived metrics and generate plots used in the evaluation chapter.
+
+%---------------------------------------------------------------
+\section{Tools for debugging and testing}
+
+The development of GPU-based acceleration data structures, such as bounding volume hierarchies, presents significant challenges in terms of debugging, validation, and performance evaluation. Due to the massively parallel execution model of modern GPUs, identifying errors and performance bottlenecks is considerably more difficult than in CPU-based implementations. This chapter provides an overview of selected tools that support visualization, debugging, and performance analysis of GPU programs in the context of ray tracing.
+
+\subsection{NVIDIA Nsight Tools}
+
+The NVIDIA Nsight tool suite provides a comprehensive set of utilities for debugging, profiling, and analyzing CUDA applications. It includes tools such as \textbf{Nsight Compute} and \textbf{Nsight Systems} for performance analysis, as well as \textbf{cuda-gdb} and \textbf{Compute Sanitizer} for debugging and correctness verification. These tools enable developers to inspect kernel execution, analyze memory access patterns, and identify performance bottlenecks at various levels of abstraction. \cite{nvidia_nsight,nvidia_cuda_gdb,nvidia_compute_sanitizer}
+
+\paragraph{cuda-gdb} The debugger extends the functionality of the GNU Debugger (GDB) to CUDA applications, allowing developers to set breakpoints, step through kernel execution, and inspect variables on both the host and device. This is particularly useful when debugging complex GPU algorithms such as BVH construction or traversal, where errors may only manifest under specific parallel execution conditions\cite{nvidia_cuda_gdb}.
+
+It is especially useful for debugging and accessing memory while inside kernel execution.
+
+\paragraph{Compute Sanitizer} The tool provides dynamic analysis capabilities for detecting memory access errors, race conditions, and synchronization issues in CUDA kernels. \cite{nvidia_compute_sanitizer}
+
+\paragraph{}
+In this thesis, \textbf{cuda-gdb} was used to debug kernel execution and verify the correctness of the implemented ADS algorithms, particularly during the development of GPU-based BVH construction and traversal. The \textbf{Compute Sanitizer} tool was employed to detect invalid memory accesses and ensure the correctness of parallel memory operations, which are critical for reliable ADS implementations.
+
+\subsection{RenderDoc}
+
+RenderDoc is an open-source graphics debugger designed for capturing and analyzing frames rendered using modern graphics APIs such as Vulkan, Direct3D, and OpenGL. It allows developers to inspect GPU resources, including buffers, textures, and shader inputs, and to step through individual rendering or compute operations. This makes it a valuable tool for understanding and debugging complex rendering pipelines. \cite{renderdoc}
+
+In the context of ray tracing and ADS development, RenderDoc can be used to inspect intermediate data structures stored in GPU memory, such as bounding volume hierarchies or geometry buffers. It provides detailed visualization of GPU state and resource contents, which can help identify issues related to incorrect data layout, invalid memory contents, or unexpected transformations. Furthermore, the ability to analyze individual draw or dispatch calls enables fine-grained debugging of rendering and compute workloads. \cite{renderdoc}
+
+\paragraph{}
+Although RenderDoc was not directly used in this work, it represents a valuable tool for debugging GPU-based rendering systems. In particular, its ability to visualize GPU resources and execution states can significantly simplify the analysis of ray tracing and acceleration data structures.

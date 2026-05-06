@@ -1,0 +1,22 @@
+%---------------------------------------------------------------
+\chapter{Introduction} %\addcontentsline{toc}{chapter}{Introduction}\markboth{Introduction}{Introduction}
+%---------------------------------------------------------------
+\setcounter{page}{1}
+
+Ray tracing is a physically based method for realistic image synthesis that simulates the propagation of light in a 3D scene. By tracing rays and evaluating their interactions with geometry and materials, it enables effects such as reflections and refractions. However, the large number of rays required for high-quality rendering makes ray tracing computationally expensive.
+
+Modern GPUs provide massive parallelism, making them well suited for ray tracing workloads. To fully utilize their capabilities, efficient spatial acceleration structures are required to reduce the number of ray-primitive intersection tests. Among these, bounding volume hierarchies (BVHs) are widely used due to their favorable balance between construction cost and traversal efficiency.
+
+This thesis focuses on BVHs and their efficient construction and traversal on GPU architectures. In particular, it investigates how different construction strategies and bounding volume representations influence traversal performance. The work builds upon three selected approaches: Parallel Locally-Ordered Clustering \cite{MB17}, Extended Morton Codes \cite{Vinkler2017}, and Skewed Oriented Bounding Boxes \cite{KB25}. In addition to evaluating these methods individually, their combinations are explored within a unified framework.
+
+The main contribution of this thesis will be the implementation and experimental evaluation of these approaches on modern GPUs. The methods will be compared using a consistent set of metrics, including construction time, traversal performance, and BVH cost. Furthermore, the thesis will analyze the relationship between theoretical quality metrics and actual runtime behavior, highlighting the influence of hardware-dependent factors.
+
+The thesis will be structured as follows. Chapter~\ref{chap:theory} will introduce the theoretical background of ray tracing and acceleration structures. Chapter~\ref{chap:measurement} will be an introduction to the methodology of testing the acceleration data structures. Chapter~\ref{chap:implementation} will describe the implementation of the selected methods, including data structures and GPU-specific considerations. Chapter~\ref{chap:results} will present the experimental setup and evaluation results, followed by their analysis. Finally, Chapter~\ref{chap:conclusion} will summarize the findings and outline directions for future work.
+
+\section{Goals}
+
+The primary goal of this thesis is to implement and compare selected BVH construction techniques and their extensions on GPU architectures. This includes methods proposed by Meister et al.~\cite{MB17}, Vinkler et al.~\cite{Vinkler2017}, and Káčerik et al.~\cite{KB25}, as well as their combinations.
+
+A secondary goal is to establish a consistent experimental framework for evaluating BVH performance. The evaluation is based on metrics such as construction time, traversal performance, and BVH cost, following the methodology of Meister et al.~\cite{MB22}.
+
+The final objective is to analyze the relationship between structural BVH quality metrics and actual ray tracing performance, and to identify the most effective approaches and combinations for practical use.

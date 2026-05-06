@@ -204,22 +204,22 @@ def main() -> int:
                                 ],
                                 "bin_count": accel["bin_count"],
                                 "build_time_ms": construction["build_time"],
-                                "init_time_ns": construction["init_time"],
-                                "memcopy_time_ns": construction["memcopy_time"],
-                                "morton_construction_time_ns": construction[
+                                "init_time_ms": construction["init_time"],
+                                "memcopy_time_ms": construction["memcopy_time"],
+                                "morton_construction_time_ms": construction[
                                     "morton_construction_time"
                                 ],
-                                "morton_sort_time_ns": construction["morton_sort_time"],
-                                "nn_search_time_ns": construction["nn_search_time"],
-                                "match_and_classify_time_ns": construction[
+                                "morton_sort_time_ms": construction["morton_sort_time"],
+                                "nn_search_time_ms": construction["nn_search_time"],
+                                "match_and_classify_time_ms": construction[
                                     "match_and_classify_time"
                                 ],
-                                "prefix_scan_time_ns": construction["prefix_scan_time"],
-                                "merge_and_compact_time_ns": construction[
+                                "prefix_scan_time_ms": construction["prefix_scan_time"],
+                                "merge_and_compact_time_ms": construction[
                                     "merge_and_compact_time"
                                 ],
-                                "sobb_refit_time_ns": construction["sobb_refit_time"],
-                                "kernel_time_ns": construction["kernel_time"],
+                                "sobb_refit_time_ms": construction["sobb_refit_time"],
+                                "kernel_time_ms": construction["kernel_time"],
                                 "node_count": construction["node_count"],
                                 "inner_node_count": construction["inner_node_count"],
                                 "leaf_node_count": construction["leaf_node_count"],

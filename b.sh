@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-preset="${1:-debug}"
+preset="${1:-release}"
 
 case "$preset" in
   debug|release)

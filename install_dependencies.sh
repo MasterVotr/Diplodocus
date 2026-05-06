@@ -13,10 +13,7 @@ sudo apt-get install -y \
     cmake \
     clang \
     git \
-    pkg-config \
-    libgl1-mesa-dev \
-    libglu1-mesa-dev \
-    xorg-dev
+    pkg-config
 
 if command -v nvcc >/dev/null 2>&1; then
     echo "CUDA toolkit found: $(nvcc --version | tail -n 1)"
